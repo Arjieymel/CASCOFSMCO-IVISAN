@@ -24,6 +24,11 @@ class TaskController extends Controller
 
         $query = Task::with('assignee');
 
+        // Staff can only view their own assigned tasks
+        if ($request->user()?->role !== 'Administrator') {
+            $query->where('assigned_to', $request->user()->id);
+        }
+
         // Search
         if ($request->filled('search')) {
             $search = $request->search;
@@ -72,6 +77,10 @@ class TaskController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->user()?->role !== 'Administrator') {
+            return response()->json(['message' => 'Unauthorized. Only Administrators can create tasks.'], 403);
+        }
+
         $request->validate([
             'title' => 'required|string|max:200',
             'description' => 'nullable|string',
@@ -109,13 +118,19 @@ class TaskController extends Controller
     /**
      * Display the specified task.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         // Mark as overdue if applicable
         $task = Task::with('assignee')->find($id);
 
         if (!$task) {
             return response()->json(['message' => 'Task not found'], 404);
+        }
+
+        if ($request->user()?->role !== 'Administrator') {
+            if ($task->assigned_to !== $request->user()->id) {
+                return response()->json(['message' => 'Unauthorized. This task is not assigned to you.'], 403);
+            }
         }
 
         if ($task->status !== 'Completed' && $task->status !== 'Overdue' && $task->due_date->isBefore(Carbon::today())) {
@@ -135,6 +150,44 @@ class TaskController extends Controller
 
         if (!$task) {
             return response()->json(['message' => 'Task not found'], 404);
+        }
+
+        if ($request->user()?->role !== 'Administrator') {
+            if ($task->assigned_to !== $request->user()->id) {
+                return response()->json(['message' => 'Unauthorized. You can only update tasks assigned to you.'], 403);
+            }
+
+            // Validate the status and progress for Staff
+            $request->validate([
+                'status' => 'required|string|in:Pending,In Progress,Completed',
+                'progress' => 'required|integer|min:0|max:100',
+            ]);
+
+            // Enforce only status and progress are modified
+            $data = [
+                'status' => $request->status,
+                'progress' => $request->progress,
+            ];
+
+            if ($data['progress'] == 100) {
+                $data['status'] = 'Completed';
+            } elseif ($data['status'] === 'Completed' && $data['progress'] < 100) {
+                $data['progress'] = 100;
+            }
+
+            $task->update($data);
+
+            ActivityLog::create([
+                'user_id' => $request->user()?->id,
+                'username' => $request->user()?->username,
+                'action' => "Updated Task Status '{$task->title}' to {$task->status} ({$task->progress}%)",
+                'ip_address' => $request->ip()
+            ]);
+
+            return response()->json([
+                'message' => 'Task accomplishment report submitted successfully',
+                'task' => $task->load('assignee')
+            ]);
         }
 
         $request->validate([
@@ -178,6 +231,10 @@ class TaskController extends Controller
      */
     public function destroy(Request $request, $id)
     {
+        if ($request->user()?->role !== 'Administrator') {
+            return response()->json(['message' => 'Unauthorized. Only Administrators can delete tasks.'], 403);
+        }
+
         $task = Task::find($id);
 
         if (!$task) {

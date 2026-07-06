@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('username')->unique();
             $table->string('password');
-            $table->string('role')->default('Staff'); // Administrator, Staff, Auditor
+            $table->string('role')->default('Staff'); // Administrator, Staff
             $table->string('status')->default('Active'); // Active, Deactivated
             $table->string('email')->nullable();
             $table->string('profile_picture')->nullable();

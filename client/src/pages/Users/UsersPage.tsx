@@ -6,9 +6,165 @@ import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
 import {
   FiPlus, FiEdit, FiTrash2, FiKey, FiToggleLeft, FiToggleRight,
-  FiShield, FiClock, FiUser,
+  FiShield, FiClock, FiUser, FiEye, FiEyeOff,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
+
+const rolesList = ["Administrator", "Staff"];
+const statusesList = ["Active", "Deactivated"];
+
+interface UserFormFieldsProps {
+  isEdit?: boolean;
+  username: string;
+  setUsername: (value: string) => void;
+  email: string;
+  setEmail: (value: string) => void;
+  role: string;
+  setRole: (value: string) => void;
+  status: string;
+  setStatus: (value: string) => void;
+  password?: string;
+  setPassword?: (value: string) => void;
+  passwordConfirmation?: string;
+  setPasswordConfirmation?: (value: string) => void;
+  setProfilePicture: (file: File | null) => void;
+  formErrors: any;
+}
+
+const UserFormFields = ({
+  isEdit = false,
+  username,
+  setUsername,
+  email,
+  setEmail,
+  role,
+  setRole,
+  status,
+  setStatus,
+  password = "",
+  setPassword,
+  passwordConfirmation = "",
+  setPasswordConfirmation,
+  setProfilePicture,
+  formErrors,
+}: UserFormFieldsProps) => {
+  const [showPassword, setShowPassword] = useState(false);
+  return (
+    <div className="space-y-4">
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+          Username <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          required
+          minLength={4}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="e.g. jdelacruz"
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        {formErrors.username && <p className="text-red-500 text-xs mt-1">{formErrors.username[0]}</p>}
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+          Email Address <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="e.g. staff@cascofamco.ph"
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email[0]}</p>}
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">System Role</label>
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {rolesList.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Account Status</label>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {statusesList.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+    </div>
+    {!isEdit && (
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+            Password <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword?.(e.target.value)}
+              className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+            </button>
+          </div>
+          {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Confirm Password</label>
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              required
+              minLength={6}
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation?.(e.target.value)}
+              className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    <div>
+      <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+        Profile Photo {isEdit && <span className="normal-case text-slate-400 font-normal">(leave blank to keep current)</span>}
+      </label>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
+        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-primary hover:file:bg-green-100 cursor-pointer"
+      />
+    </div>
+    </div>
+  );
+};
 
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -34,12 +190,10 @@ const UsersPage = () => {
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirmation, setNewPasswordConfirmation] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
-
-  const rolesList = ["Administrator", "Staff", "Auditor"];
-  const statusesList = ["Active", "Deactivated"];
 
   const fetchUsers = async (page: number = 1) => {
     try {
@@ -75,6 +229,7 @@ const UsersPage = () => {
   const openResetModal = (u: User) => {
     setSelectedUser(u);
     setNewPassword(""); setNewPasswordConfirmation(""); setFormErrors({});
+    setShowResetPassword(false);
     setIsResetModalOpen(true);
   };
 
@@ -186,108 +341,9 @@ const UsersPage = () => {
     const map: Record<string, string> = {
       Administrator: "bg-purple-50 text-purple-700 border-purple-200",
       Staff: "bg-blue-50 text-blue-700 border-blue-200",
-      Auditor: "bg-amber-50 text-amber-700 border-amber-200",
     };
     return map[r] || "bg-slate-100 text-slate-600 border-slate-200";
   };
-
-  const UserFormFields = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-            Username <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            minLength={4}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="e.g. jdelacruz"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          {formErrors.username && <p className="text-red-500 text-xs mt-1">{formErrors.username[0]}</p>}
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-            Email Address <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="e.g. staff@cascofamco.ph"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email[0]}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">System Role</label>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {rolesList.map((r) => <option key={r} value={r}>{r}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Account Status</label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {statusesList.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
-      {!isEdit && (
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-              Password <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Confirm Password</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      )}
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-          Profile Photo {isEdit && <span className="normal-case text-slate-400 font-normal">(leave blank to keep current)</span>}
-        </label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
-          className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-primary hover:file:bg-green-100 cursor-pointer"
-        />
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -296,7 +352,7 @@ const UsersPage = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-800">System User Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Manage administrator, staff, and auditor accounts with role-based access control.
+            Manage administrator and staff accounts with role-based access control.
           </p>
         </div>
         <button
@@ -459,7 +515,22 @@ const UsersPage = () => {
             <p className="text-xs text-slate-500 mt-0.5">Add a new system user with role-based access control.</p>
           </div>
           <form onSubmit={handleAddUser}>
-            <UserFormFields />
+            <UserFormFields
+              username={username}
+              setUsername={setUsername}
+              email={email}
+              setEmail={setEmail}
+              role={role}
+              setRole={setRole}
+              status={status}
+              setStatus={setStatus}
+              password={password}
+              setPassword={setPassword}
+              passwordConfirmation={passwordConfirmation}
+              setPasswordConfirmation={setPasswordConfirmation}
+              setProfilePicture={setProfilePicture}
+              formErrors={formErrors}
+            />
             <div className="flex gap-3 justify-end pt-4 mt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 cursor-pointer">Cancel</button>
               <button type="submit" disabled={submitLoading} className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md cursor-pointer disabled:opacity-50 transition-colors">
@@ -480,7 +551,19 @@ const UsersPage = () => {
             </p>
           </div>
           <form onSubmit={handleEditUser}>
-            <UserFormFields isEdit />
+            <UserFormFields
+              isEdit
+              username={username}
+              setUsername={setUsername}
+              email={email}
+              setEmail={setEmail}
+              role={role}
+              setRole={setRole}
+              status={status}
+              setStatus={setStatus}
+              setProfilePicture={setProfilePicture}
+              formErrors={formErrors}
+            />
             <div className="flex gap-3 justify-end pt-4 mt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 cursor-pointer">Cancel</button>
               <button type="submit" disabled={submitLoading} className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md cursor-pointer disabled:opacity-50 transition-colors">
@@ -503,26 +586,44 @@ const UsersPage = () => {
           <form onSubmit={handleResetPassword} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">New Password</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+              <div className="relative">
+                <input
+                  type={showResetPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showResetPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                </button>
+              </div>
               {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Confirm New Password</label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={newPasswordConfirmation}
-                onChange={(e) => setNewPasswordConfirmation(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+              <div className="relative">
+                <input
+                  type={showResetPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={newPasswordConfirmation}
+                  onChange={(e) => setNewPasswordConfirmation(e.target.value)}
+                  className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showResetPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
               <button type="button" onClick={() => setIsResetModalOpen(false)} className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 cursor-pointer">Cancel</button>

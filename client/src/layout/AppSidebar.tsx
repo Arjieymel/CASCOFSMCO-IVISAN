@@ -23,14 +23,14 @@ const AppSidebar = () => {
   };
 
   const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <FiHome className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
-    { path: "/members", text: "Members", icon: <FiUsers className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
-    { path: "/productions", text: "Productions", icon: <FiPackage className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
-    { path: "/sales", text: "Sales Recording", icon: <FiDollarSign className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
-    { path: "/tasks", text: "Task Monitoring", icon: <FiCheckSquare className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
-    { path: "/reports", text: "Reports", icon: <FiBarChart2 className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
+    { path: "/dashboard", text: "Dashboard", icon: <FiHome className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
+    { path: "/members", text: "Members", icon: <FiUsers className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
+    { path: "/productions", text: "Productions", icon: <FiPackage className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
+    { path: "/sales", text: "Sales Recording", icon: <FiDollarSign className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
+    { path: "/tasks", text: "Task Monitoring", icon: <FiCheckSquare className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
+    { path: "/reports", text: "Reports", icon: <FiBarChart2 className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
     { path: "/users", text: "Users", icon: <FiUser className="w-5 h-5" />, roles: ['Administrator'] },
-    { path: "/settings", text: "Settings", icon: <FiSettings className="w-5 h-5" />, roles: ['Administrator', 'Staff', 'Auditor'] },
+    { path: "/settings", text: "Settings", icon: <FiSettings className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
   ];
 
   const allowedMenuItems = menuItems.filter(item => !item.roles || (user && item.roles.includes(user.role)));

@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import SettingService from "../../services/SettingService";
 import { useAuth } from "../../contexts/AuthContext";
 import {
-  FiSave, FiUpload, FiDatabase, FiLock, FiSettings, FiDownload, FiAlertTriangle, FiInfo,
+  FiSave, FiUpload, FiDatabase, FiLock, FiSettings, FiDownload, FiAlertTriangle, FiInfo, FiEye, FiEyeOff,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 
@@ -27,6 +27,9 @@ const SettingsPage = () => {
   const [newPasswordConfirmation, setNewPasswordConfirmation] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<any>({});
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
 
   // Database
   const [backupLoading, setBackupLoading] = useState(false);
@@ -282,13 +285,22 @@ const SettingsPage = () => {
         <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Current Password</label>
-            <input
-              type="password"
-              required
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div className="relative">
+              <input
+                type={showCurrentPassword ? "text" : "password"}
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showCurrentPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+              </button>
+            </div>
             {passwordErrors.current_password && (
               <p className="text-red-500 text-xs mt-1">{passwordErrors.current_password[0]}</p>
             )}
@@ -297,28 +309,46 @@ const SettingsPage = () => {
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
               New Password <span className="text-slate-400 font-normal normal-case">(min. 6 characters)</span>
             </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showNewPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+              </button>
+            </div>
             {passwordErrors.new_password && (
               <p className="text-red-500 text-xs mt-1">{passwordErrors.new_password[0]}</p>
             )}
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Confirm New Password</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPasswordConfirmation}
-              onChange={(e) => setNewPasswordConfirmation(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmNewPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={newPasswordConfirmation}
+                onChange={(e) => setNewPasswordConfirmation(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showConfirmNewPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <button
             type="submit"

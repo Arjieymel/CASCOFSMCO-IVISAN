@@ -6,11 +6,166 @@ import SearchBar from "../../components/SearchBar";
 import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
 import {
-  FiPlus, FiEdit, FiTrash2, FiCalendar, FiFlag,
+  FiPlus, FiEdit, FiTrash2, FiCalendar, FiFlag, FiCheckSquare,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
+import { useAuth } from "../../contexts/AuthContext";
+
+const priorityList = ["Low", "Medium", "High"];
+const statusList = ["Pending", "In Progress", "Completed", "Overdue"];
+
+interface TaskFormFieldsProps {
+  title: string;
+  setTitle: (val: string) => void;
+  description: string;
+  setDescription: (val: string) => void;
+  assignedTo: string;
+  setAssignedTo: (val: string) => void;
+  priority: string;
+  setPriority: (val: string) => void;
+  status: string;
+  setStatus: (val: string) => void;
+  progress: number;
+  setProgress: (val: number) => void;
+  dueDate: string;
+  setDueDate: (val: string) => void;
+  users: User[];
+  formErrors: any;
+}
+
+const TaskFormFields = ({
+  title,
+  setTitle,
+  description,
+  setDescription,
+  assignedTo,
+  setAssignedTo,
+  priority,
+  setPriority,
+  status,
+  setStatus,
+  progress,
+  setProgress,
+  dueDate,
+  setDueDate,
+  users,
+  formErrors,
+}: TaskFormFieldsProps) => (
+  <div className="space-y-4">
+    <div>
+      <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+        Task Title <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        required
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="e.g. Verify copra delivery receipts"
+        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+      />
+      {formErrors.title && <p className="text-red-500 text-xs mt-1">{formErrors.title[0]}</p>}
+    </div>
+
+    <div>
+      <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description</label>
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        rows={3}
+        placeholder="Detailed description of the task..."
+        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+      />
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Assigned To</label>
+        <select
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="">— Unassigned —</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.username} ({u.role})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Priority</label>
+        <select
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {priorityList.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Status</label>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {statusList.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+          Due Date <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="date"
+          required
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+        />
+        {formErrors.due_date && <p className="text-red-500 text-xs mt-1">{formErrors.due_date[0]}</p>}
+      </div>
+    </div>
+
+    <div>
+      <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+        Progress — {progress}%
+      </label>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={progress}
+        onChange={(e) => setProgress(parseInt(e.target.value))}
+        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
+      />
+      <div className="flex justify-between text-xs text-slate-400 mt-1">
+        <span>0%</span>
+        <span className="font-semibold text-primary">{progress}%</span>
+        <span>100%</span>
+      </div>
+      <div className="w-full bg-slate-100 rounded-full h-2 mt-1.5">
+        <div
+          className={`h-2 rounded-full transition-all duration-300 bg-amber-400`}
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  </div>
+);
 
 const TasksPage = () => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +178,7 @@ const TasksPage = () => {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAccomplishmentModalOpen, setIsAccomplishmentModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const [title, setTitle] = useState("");
@@ -35,9 +191,6 @@ const TasksPage = () => {
 
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
-
-  const priorityList = ["Low", "Medium", "High"];
-  const statusList = ["Pending", "In Progress", "Completed", "Overdue"];
 
   const fetchTasks = async (page: number = 1) => {
     try {
@@ -100,6 +253,41 @@ const TasksPage = () => {
     setDueDate(typeof task.due_date === "string" ? task.due_date.split("T")[0] : "");
     setFormErrors({});
     setIsEditModalOpen(true);
+  };
+
+  const openAccomplishmentModal = (task: Task) => {
+    setSelectedTask(task);
+    setStatus(task.status);
+    setProgress(task.progress);
+    setFormErrors({});
+    setIsAccomplishmentModalOpen(true);
+  };
+
+  const handleAccomplishmentSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedTask) return;
+    setFormErrors({});
+    const payload = {
+      title: selectedTask.title,
+      description: selectedTask.description,
+      assigned_to: selectedTask.assigned_to,
+      priority: selectedTask.priority,
+      due_date: typeof selectedTask.due_date === "string" ? selectedTask.due_date.split("T")[0] : selectedTask.due_date,
+      status,
+      progress,
+    };
+    try {
+      setSubmitLoading(true);
+      await TaskService.updateTask(selectedTask.id, payload);
+      setIsAccomplishmentModalOpen(false);
+      Swal.fire("Saved!", "Task Accomplishment Report submitted successfully.", "success");
+      fetchTasks(currentPage);
+    } catch (err: any) {
+      if (err.response?.status === 422) setFormErrors(err.response.data.errors);
+      else Swal.fire("Error", "Failed to submit accomplishment report.", "error");
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   const handleAddTask = async (e: FormEvent) => {
@@ -200,119 +388,7 @@ const TasksPage = () => {
     return "bg-amber-400";
   };
 
-  const TaskFormFields = () => (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-          Task Title <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="e.g. Verify copra delivery receipts"
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        {formErrors.title && <p className="text-red-500 text-xs mt-1">{formErrors.title[0]}</p>}
-      </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          placeholder="Detailed description of the task..."
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Assigned To</label>
-          <select
-            value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">— Unassigned —</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.username} ({u.role})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Priority</label>
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {priorityList.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Status</label>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            {statusList.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-            Due Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            required
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          {formErrors.due_date && <p className="text-red-500 text-xs mt-1">{formErrors.due_date[0]}</p>}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-          Progress — {progress}%
-        </label>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={5}
-          value={progress}
-          onChange={(e) => setProgress(parseInt(e.target.value))}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
-        />
-        <div className="flex justify-between text-xs text-slate-400 mt-1">
-          <span>0%</span>
-          <span className="font-semibold text-primary">{progress}%</span>
-          <span>100%</span>
-        </div>
-        <div className="w-full bg-slate-100 rounded-full h-2 mt-1.5">
-          <div
-            className={`h-2 rounded-full transition-all duration-300 ${getProgressBarColor(progress)}`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -324,13 +400,15 @@ const TasksPage = () => {
             Track, assign, and monitor operational tasks across CASCOFAMCO teams.
           </p>
         </div>
-        <button
-          onClick={openAddModal}
-          className="bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer text-sm"
-        >
-          <FiPlus className="w-4 h-4" />
-          <span>Create Task</span>
-        </button>
+        {user?.role === "Administrator" && (
+          <button
+            onClick={openAddModal}
+            className="bg-primary hover:bg-primary-dark text-white font-semibold py-2.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer text-sm"
+          >
+            <FiPlus className="w-4 h-4" />
+            <span>Create Task</span>
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -430,20 +508,33 @@ const TasksPage = () => {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center gap-2">
-                          <button
-                            onClick={() => openEditModal(task)}
-                            title="Edit task"
-                            className="p-1.5 rounded-lg text-primary hover:bg-green-50 cursor-pointer transition-colors"
-                          >
-                            <FiEdit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTask(task)}
-                            title="Delete task"
-                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
-                          >
-                            <FiTrash2 className="w-4 h-4" />
-                          </button>
+                          {user?.role === "Administrator" ? (
+                            <>
+                              <button
+                                onClick={() => openEditModal(task)}
+                                title="Edit task"
+                                className="p-1.5 rounded-lg text-primary hover:bg-green-50 cursor-pointer transition-colors"
+                              >
+                                <FiEdit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task)}
+                                title="Delete task"
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => openAccomplishmentModal(task)}
+                              title="Submit Accomplishment Report"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-primary bg-green-50 hover:bg-green-100 cursor-pointer transition-colors text-xs font-semibold"
+                            >
+                              <FiCheckSquare className="w-3.5 h-3.5" />
+                              <span>Submit Report</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -474,7 +565,24 @@ const TasksPage = () => {
             <p className="text-xs text-slate-500 mt-0.5">Assign a new operational task to a cooperative team member.</p>
           </div>
           <form onSubmit={handleAddTask}>
-            <TaskFormFields />
+            <TaskFormFields
+              title={title}
+              setTitle={setTitle}
+              description={description}
+              setDescription={setDescription}
+              assignedTo={assignedTo}
+              setAssignedTo={setAssignedTo}
+              priority={priority}
+              setPriority={setPriority}
+              status={status}
+              setStatus={setStatus}
+              progress={progress}
+              setProgress={setProgress}
+              dueDate={dueDate}
+              setDueDate={setDueDate}
+              users={users}
+              formErrors={formErrors}
+            />
             <div className="flex gap-3 justify-end pt-4 mt-4 border-t border-slate-100">
               <button
                 type="button"
@@ -505,7 +613,24 @@ const TasksPage = () => {
             </p>
           </div>
           <form onSubmit={handleEditTask}>
-            <TaskFormFields />
+            <TaskFormFields
+              title={title}
+              setTitle={setTitle}
+              description={description}
+              setDescription={setDescription}
+              assignedTo={assignedTo}
+              setAssignedTo={setAssignedTo}
+              priority={priority}
+              setPriority={setPriority}
+              status={status}
+              setStatus={setStatus}
+              progress={progress}
+              setProgress={setProgress}
+              dueDate={dueDate}
+              setDueDate={setDueDate}
+              users={users}
+              formErrors={formErrors}
+            />
             <div className="flex gap-3 justify-end pt-4 mt-4 border-t border-slate-100">
               <button
                 type="button"
@@ -520,6 +645,107 @@ const TasksPage = () => {
                 className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md cursor-pointer disabled:opacity-50 transition-colors"
               >
                 {submitLoading ? "Updating..." : "Update Task"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Submit Accomplishment Report Modal */}
+      <Modal isOpen={isAccomplishmentModalOpen} onClose={() => setIsAccomplishmentModalOpen(false)} showCloseButton={true}>
+        <div className="p-2 space-y-5">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Submit Task Accomplishment Report</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Task: <span className="font-semibold text-primary">{selectedTask?.title}</span>
+            </p>
+          </div>
+          <form onSubmit={handleAccomplishmentSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description</label>
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 text-sm whitespace-pre-wrap">
+                  {selectedTask?.description || <span className="italic text-slate-400">No description provided.</span>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Due Date</label>
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 text-sm">
+                    {selectedTask && (typeof selectedTask.due_date === "string" ? selectedTask.due_date.split("T")[0] : selectedTask.due_date)}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Priority</label>
+                  <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-slate-600 text-sm font-semibold">
+                    {selectedTask?.priority}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Task Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    setStatus(newStatus);
+                    if (newStatus === "Completed") {
+                      setProgress(100);
+                    } else if (newStatus === "Pending") {
+                      setProgress(0);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="In Progress">In Progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  Progress — {progress}%
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={progress}
+                  onChange={(e) => {
+                    const newProgress = parseInt(e.target.value);
+                    setProgress(newProgress);
+                    if (newProgress === 100) {
+                      setStatus("Completed");
+                    } else if (newProgress === 0) {
+                      setStatus("Pending");
+                    } else {
+                      setStatus("In Progress");
+                    }
+                  }}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-slate-400 mt-1">
+                  <span>0%</span>
+                  <span className="font-semibold text-primary">{progress}%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end pt-4 mt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsAccomplishmentModalOpen(false)}
+                className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitLoading}
+                className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md cursor-pointer disabled:opacity-50 transition-colors"
+              >
+                {submitLoading ? "Submitting..." : "Submit Accomplishment Report"}
               </button>
             </div>
           </form>

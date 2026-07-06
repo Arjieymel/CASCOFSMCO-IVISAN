@@ -40,7 +40,7 @@ const ProductionsPage = () => {
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const productTypesList = ["Copra", "Whole Coconut", "Coconut Husk", "Charcoal", "Coco Coir"];
+  const productTypesList = ["Copra", "Whole Coconut", "Coconut Husk", "Charcoal", "Coco Coir", "Coconut Oil"];
   const statusesList = ["Pending", "Approved", "Completed", "Cancelled"];
 
   const fetchProductions = async (page: number = 1) => {
@@ -219,7 +219,7 @@ const ProductionsPage = () => {
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
           <SearchBar value={search} onChange={setSearch} placeholder="Search by member name, farm, remarks..." />
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <select
               value={productTypeFilter}
@@ -321,12 +321,11 @@ const ProductionsPage = () => {
                         {p.remarks || <span className="text-slate-350">—</span>}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          p.status === 'Completed' ? 'bg-green-50 text-green-700 border border-green-150' :
-                          p.status === 'Approved' ? 'bg-blue-50 text-blue-700 border border-blue-150' :
-                          p.status === 'Pending' ? 'bg-amber-50 text-amber-700 border border-amber-150' :
-                          'bg-red-50 text-red-750 border border-red-150'
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${p.status === 'Completed' ? 'bg-green-50 text-green-700 border border-green-150' :
+                            p.status === 'Approved' ? 'bg-blue-50 text-blue-700 border border-blue-150' :
+                              p.status === 'Pending' ? 'bg-amber-50 text-amber-700 border border-amber-150' :
+                                'bg-red-50 text-red-750 border border-red-150'
+                          }`}>
                           {p.status}
                         </span>
                       </td>

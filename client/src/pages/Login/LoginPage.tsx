@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { FiUser, FiLock, FiAlertCircle, FiPackage } from "react-icons/fi";
+import { FiUser, FiLock, FiAlertCircle, FiPackage, FiEye, FiEyeOff } from "react-icons/fi";
 import Swal from "sweetalert2";
 
 const LoginPage = () => {
@@ -13,6 +13,7 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Redirect if user is already logged in
   useEffect(() => {
@@ -144,13 +145,20 @@ const LoginPage = () => {
                   <FiLock className="w-5 h-5" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white focus:border-transparent text-sm transition-all duration-150"
+                  className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white focus:border-transparent text-sm transition-all duration-150"
                   placeholder="••••••••"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 

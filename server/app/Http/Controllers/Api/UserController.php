@@ -68,7 +68,7 @@ class UserController extends Controller
         $request->validate([
             'username' => 'required|string|min:4|max:50|unique:users,username',
             'password' => 'required|string|min:6|confirmed',
-            'role' => 'required|string|in:Administrator,Staff,Auditor',
+            'role' => 'required|string|in:Administrator,Staff',
             'status' => 'required|string|in:Active,Deactivated',
             'email' => 'required|email|max:100',
             'profile_picture' => 'nullable|image|max:2048',
@@ -127,7 +127,7 @@ class UserController extends Controller
 
         $request->validate([
             'username' => ['required', 'string', 'min:4', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
-            'role' => 'required|string|in:Administrator,Staff,Auditor',
+            'role' => 'required|string|in:Administrator,Staff',
             'status' => 'required|string|in:Active,Deactivated',
             'email' => 'required|email|max:100',
             'profile_picture' => 'nullable|image|max:2048',

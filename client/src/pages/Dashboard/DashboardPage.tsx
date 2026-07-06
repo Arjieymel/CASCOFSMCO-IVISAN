@@ -107,7 +107,7 @@ const DashboardPage = () => {
   if (error || !data) {
     return (
       <div className="p-6 bg-red-50 text-red-700 border-l-4 border-red-500 rounded-lg flex items-center gap-3">
-        <FiAlertTriangle className="w-6 h-6 flex-shrink-0" />
+        <FiAlertTriangle className="w-6 h-6 shrink-0" />
         <div>
           <p className="font-bold">Error Loading Dashboard</p>
           <p className="text-sm">{error || "Could not retrieve system summary counters."}</p>

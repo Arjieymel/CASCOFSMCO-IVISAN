@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
             'last_login' => Carbon::now()->subHours(2),
         ]);
 
-        // 2. Create 10 Staff and 2 Auditor Users
+        // 2. Create 10 Staff Users
         $staffNames = [
             'maria_clara', 'juan_delacruz', 'pedro_penduko', 'jose_rizal', 
             'andres_bonifacio', 'gregoria_dejesus', 'melchora_aquino', 
@@ -51,18 +51,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        $auditorNames = ['auditor1', 'auditor2'];
-        foreach ($auditorNames as $username) {
-            $users[] = User::create([
-                'username' => $username,
-                'password' => Hash::make('auditor123'),
-                'role' => 'Auditor',
-                'status' => 'Active',
-                'email' => $username . '@cascofamco.com',
-                'profile_picture' => null,
-                'last_login' => Carbon::now()->subDays(rand(1, 5)),
-            ]);
-        }
+
 
         // 3. Create 100 Members
         $faker = \Faker\Factory::create();
@@ -156,14 +145,14 @@ class DatabaseSeeder extends Seeder
         // 6. Create 50 Tasks
         $taskTitles = [
             'Verify member documents', 'Inspect Pontevedra warehouse', 'Prepare monthly sales report',
-            'Conduct auditor meeting', 'Check low stock copra levels', 'Update member status to active',
+            'Conduct staff meeting', 'Check low stock copra levels', 'Update member status to active',
             'Process quarterly dividend payment', 'Prepare annual cooperative general assembly',
             'Deliver coconut husks to buyer', 'Record latest copra production batch',
             'Calibrate weighing scale at Dao station', 'Renew cooperative operating permit',
             'Conduct financial audit for Q2', 'Investigate pending invoice discrepancies',
             'Perform backup of database', 'Organize training for organic coconut farming',
             'Update price list in settings', 'Address member complaints regarding payment delay',
-            'Maintain transport vehicle', 'Audit warehouse logs for charcoal production'
+            'Maintain transport vehicle', 'Review warehouse logs for charcoal production'
         ];
         $priorities = ['Low', 'Medium', 'High'];
         $taskStatuses = ['Pending', 'In Progress', 'Completed', 'Overdue'];
