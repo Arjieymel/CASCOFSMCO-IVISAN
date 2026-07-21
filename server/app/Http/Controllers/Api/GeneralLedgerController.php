@@ -14,6 +14,7 @@ use App\Http\Requests\StoreGeneralLedgerRequest;
 use App\Http\Requests\UpdateGeneralLedgerRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GeneralLedgerController extends Controller
 {
@@ -85,128 +86,141 @@ class GeneralLedgerController extends Controller
             return response()->json(['message' => 'Unauthorized access.'], 403);
         }
 
-        DB::transaction(function() {
-            // Keep manual entries or wipe and rebuild standard entries
-            GeneralLedger::truncate();
+        try {
+            Log::info('Initiating General Ledger synchronization by user ID: ' . $request->user()->id);
 
-            $entries = [];
+            DB::transaction(function() {
+                // Delete existing records (using delete instead of truncate to prevent DDL implicit commits in MySQL transaction)
+                GeneralLedger::query()->delete();
 
-            // 1. Cash Register Books (Account 1010 - Cash on Hand)
-            $cashRegisters = CashRegisterBook::all();
-            foreach ($cashRegisters as $cr) {
-                $entries[] = [
-                    'account_code' => '1010',
-                    'account_title' => 'Cash on Hand',
-                    'transaction_date' => $cr->date->format('Y-m-d'),
-                    'reference_number' => $cr->reference_no,
-                    'debit' => (float)$cr->cash_in,
-                    'credit' => (float)$cr->cash_out,
-                    'running_balance' => (float)$cr->running_balance,
-                    'source_module' => 'Cash Register',
-                    'description' => $cr->description,
-                    'created_at' => $cr->created_at,
-                    'updated_at' => $cr->updated_at,
-                ];
-            }
+                $entries = [];
 
-            // 2. Cash Disbursement Journals (Account 5010 - Operating Expenses / Cash Outflow)
-            $disbursements = CashDisbursementJournal::all();
-            foreach ($disbursements as $cd) {
-                $entries[] = [
-                    'account_code' => '5010',
-                    'account_title' => 'Disbursements & Expenses (' . $cd->expense_account . ')',
-                    'transaction_date' => $cd->disbursement_date->format('Y-m-d'),
-                    'reference_number' => $cd->voucher_number,
-                    'debit' => (float)$cd->amount,
-                    'credit' => 0.00,
-                    'running_balance' => 0.00,
-                    'source_module' => 'Cash Disbursement',
-                    'description' => "Payee: {$cd->payee} - {$cd->description}",
-                    'created_at' => $cd->created_at,
-                    'updated_at' => $cd->updated_at,
-                ];
-            }
+                // 1. Cash Register Books (Account 1010 - Cash on Hand)
+                $cashRegisters = CashRegisterBook::all();
+                foreach ($cashRegisters as $cr) {
+                    $entries[] = [
+                        'account_code' => '1010',
+                        'account_title' => 'Cash on Hand',
+                        'transaction_date' => $cr->date ? \Carbon\Carbon::parse($cr->date)->format('Y-m-d') : date('Y-m-d'),
+                        'reference_number' => $cr->reference_no ?? '',
+                        'debit' => (float)($cr->cash_in ?? 0),
+                        'credit' => (float)($cr->cash_out ?? 0),
+                        'running_balance' => (float)($cr->running_balance ?? 0),
+                        'source_module' => 'Cash Register',
+                        'description' => $cr->description ?? '',
+                        'created_at' => $cr->created_at,
+                        'updated_at' => $cr->updated_at,
+                    ];
+                }
 
-            // 3. Cash Sales Books (Account 4010 - Sales Revenue)
-            $sales = CashSalesBook::all();
-            foreach ($sales as $sb) {
-                $entries[] = [
-                    'account_code' => '4010',
-                    'account_title' => 'Cooperative Sales Revenue',
-                    'transaction_date' => $sb->sale_date->format('Y-m-d'),
-                    'reference_number' => $sb->invoice_number,
-                    'debit' => 0.00,
-                    'credit' => (float)$sb->total_amount,
-                    'running_balance' => 0.00,
-                    'source_module' => 'Sales Book',
-                    'description' => "Customer: {$sb->customer} - {$sb->product} ({$sb->quantity} @ ₱{$sb->unit_price})",
-                    'created_at' => $sb->created_at,
-                    'updated_at' => $sb->updated_at,
-                ];
-            }
+                // 2. Cash Disbursement Journals (Account 5010 - Operating Expenses / Cash Outflow)
+                $disbursements = CashDisbursementJournal::all();
+                foreach ($disbursements as $cd) {
+                    $entries[] = [
+                        'account_code' => '5010',
+                        'account_title' => 'Disbursements & Expenses (' . ($cd->expense_account ?? 'General') . ')',
+                        'transaction_date' => $cd->disbursement_date ? \Carbon\Carbon::parse($cd->disbursement_date)->format('Y-m-d') : date('Y-m-d'),
+                        'reference_number' => $cd->voucher_number ?? '',
+                        'debit' => (float)($cd->amount ?? 0),
+                        'credit' => 0.00,
+                        'running_balance' => 0.00,
+                        'source_module' => 'Cash Disbursement',
+                        'description' => "Payee: {$cd->payee} - {$cd->description}",
+                        'created_at' => $cd->created_at,
+                        'updated_at' => $cd->updated_at,
+                    ];
+                }
 
-            // 4. Cash Receipts Journals (Account 1020 - Cash Receipts & Income)
-            $receipts = CashReceiptsJournal::all();
-            foreach ($receipts as $crj) {
-                $entries[] = [
-                    'account_code' => '1020',
-                    'account_title' => 'Income & Receipts (' . $crj->source_of_income . ')',
-                    'transaction_date' => $crj->receipt_date->format('Y-m-d'),
-                    'reference_number' => $crj->or_number,
-                    'debit' => (float)$crj->amount_received,
-                    'credit' => 0.00,
-                    'running_balance' => 0.00,
-                    'source_module' => 'Cash Receipts',
-                    'description' => "From: {$crj->received_from} - {$crj->description}",
-                    'created_at' => $crj->created_at,
-                    'updated_at' => $crj->updated_at,
-                ];
-            }
+                // 3. Cash Sales Books (Account 4010 - Sales Revenue)
+                $sales = CashSalesBook::all();
+                foreach ($sales as $sb) {
+                    $entries[] = [
+                        'account_code' => '4010',
+                        'account_title' => 'Cooperative Sales Revenue',
+                        'transaction_date' => $sb->sale_date ? \Carbon\Carbon::parse($sb->sale_date)->format('Y-m-d') : date('Y-m-d'),
+                        'reference_number' => $sb->invoice_number ?? '',
+                        'debit' => 0.00,
+                        'credit' => (float)($sb->total_amount ?? 0),
+                        'running_balance' => 0.00,
+                        'source_module' => 'Sales Book',
+                        'description' => "Customer: {$sb->customer} - {$sb->product} ({$sb->quantity} @ ₱{$sb->unit_price})",
+                        'created_at' => $sb->created_at,
+                        'updated_at' => $sb->updated_at,
+                    ];
+                }
 
-            // 5. Journal Vouchers (Account 3010 / Adjustment Accounts)
-            $vouchers = JournalVoucher::where('status', 'Posted')->orWhere('status', 'Approved')->get();
-            foreach ($vouchers as $jv) {
-                $entries[] = [
-                    'account_code' => '3010',
-                    'account_title' => "Debit: {$jv->debit_account} / Credit: {$jv->credit_account}",
-                    'transaction_date' => $jv->voucher_date->format('Y-m-d'),
-                    'reference_number' => $jv->voucher_number,
-                    'debit' => (float)$jv->amount,
-                    'credit' => (float)$jv->amount,
-                    'running_balance' => 0.00,
-                    'source_module' => 'Journal Voucher',
-                    'description' => $jv->description,
-                    'created_at' => $jv->created_at,
-                    'updated_at' => $jv->updated_at,
-                ];
-            }
+                // 4. Cash Receipts Journals (Account 1020 - Cash Receipts & Income)
+                $receipts = CashReceiptsJournal::all();
+                foreach ($receipts as $crj) {
+                    $entries[] = [
+                        'account_code' => '1020',
+                        'account_title' => 'Income & Receipts (' . ($crj->source_of_income ?? 'General') . ')',
+                        'transaction_date' => $crj->receipt_date ? \Carbon\Carbon::parse($crj->receipt_date)->format('Y-m-d') : date('Y-m-d'),
+                        'reference_number' => $crj->or_number ?? '',
+                        'debit' => (float)($crj->amount_received ?? 0),
+                        'credit' => 0.00,
+                        'running_balance' => 0.00,
+                        'source_module' => 'Cash Receipts',
+                        'description' => "From: {$crj->received_from} - {$crj->description}",
+                        'created_at' => $crj->created_at,
+                        'updated_at' => $crj->updated_at,
+                    ];
+                }
 
-            // Sort entries chronologically and calculate running balances
-            usort($entries, function($a, $b) {
-                return strcmp($a['transaction_date'], $b['transaction_date']);
+                // 5. Journal Vouchers (Account 3010 / Adjustment Accounts)
+                $vouchers = JournalVoucher::where('status', 'Posted')->orWhere('status', 'Approved')->get();
+                foreach ($vouchers as $jv) {
+                    $entries[] = [
+                        'account_code' => '3010',
+                        'account_title' => "Debit: {$jv->debit_account} / Credit: {$jv->credit_account}",
+                        'transaction_date' => $jv->voucher_date ? \Carbon\Carbon::parse($jv->voucher_date)->format('Y-m-d') : date('Y-m-d'),
+                        'reference_number' => $jv->voucher_number ?? '',
+                        'debit' => (float)($jv->amount ?? 0),
+                        'credit' => (float)($jv->amount ?? 0),
+                        'running_balance' => 0.00,
+                        'source_module' => 'Journal Voucher',
+                        'description' => $jv->description ?? '',
+                        'created_at' => $jv->created_at,
+                        'updated_at' => $jv->updated_at,
+                    ];
+                }
+
+                // Sort entries chronologically and calculate running balances
+                usort($entries, function($a, $b) {
+                    return strcmp($a['transaction_date'], $b['transaction_date']);
+                });
+
+                $runningBal = 0.00;
+                foreach ($entries as &$e) {
+                    $runningBal += ($e['debit'] - $e['credit']);
+                    $e['running_balance'] = $runningBal;
+                }
+
+                foreach ($entries as $e) {
+                    GeneralLedger::create($e);
+                }
             });
 
-            $runningBal = 0.00;
-            foreach ($entries as &$e) {
-                $runningBal += ($e['debit'] - $e['credit']);
-                $e['running_balance'] = $runningBal;
-            }
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => 'Synchronized General Ledger with all Books of Accounts.',
+                'ip_address' => $request->ip()
+            ]);
 
-            foreach ($entries as $e) {
-                GeneralLedger::create($e);
-            }
-        });
+            return response()->json([
+                'message' => 'General Ledger synchronized successfully.'
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('General Ledger synchronization failed: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString()
+            ]);
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => 'Synchronized General Ledger with all Books of Accounts.',
-            'ip_address' => $request->ip()
-        ]);
-
-        return response()->json([
-            'message' => 'General Ledger synchronized successfully.'
-        ]);
+            return response()->json([
+                'message' => 'Failed to synchronize General Ledger: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function store(StoreGeneralLedgerRequest $request)

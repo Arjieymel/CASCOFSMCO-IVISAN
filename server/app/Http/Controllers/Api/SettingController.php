@@ -41,8 +41,8 @@ class SettingController extends Controller
             'address' => 'required|string|max:255',
             'contact_number' => 'required|string|max:50',
             'email' => 'required|email|max:100',
-            'theme_mode' => 'required|string|in:light,dark',
-            'cooperative_logo' => 'nullable|image|max:1024' // 1MB logo limit
+            'theme_mode' => 'required|string|max:50',
+            'cooperative_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048' // 2MB logo limit
         ]);
 
         Setting::setVal('cooperative_name', $request->cooperative_name);
