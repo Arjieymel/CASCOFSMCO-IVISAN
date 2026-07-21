@@ -225,5 +225,8 @@ class DatabaseSeeder extends Seeder
                 'created_at' => Carbon::now()->subMinutes(rand(5, 500)),
             ]);
         }
+
+        // 9. Seed Books of Accounts
+        $this->call(BooksOfAccountsSeeder::class);
     }
 }

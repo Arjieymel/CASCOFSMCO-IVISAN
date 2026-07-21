@@ -8,6 +8,11 @@ use App\Models\Production;
 use App\Models\Sale;
 use App\Models\Task;
 use App\Models\ActivityLog;
+use App\Models\CashRegisterBook;
+use App\Models\CashDisbursementJournal;
+use App\Models\CashSalesBook;
+use App\Models\CashReceiptsJournal;
+use App\Models\JournalVoucher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -15,13 +20,12 @@ use Carbon\Carbon;
 class DashboardController extends Controller
 {
     /**
-     * Get dashboard summary and analytics data.
+     * Get dashboard summary and analytics data including Books of Accounts integration.
      */
     public function index(Request $request)
     {
         // 1. Core counters
         $totalMembers = Member::count();
-        
         $totalProduction = Production::whereIn('status', ['Completed', 'Approved'])->sum('quantity');
         $totalSales = Sale::where('status', 'Paid')->sum('total_amount');
         
@@ -33,7 +37,20 @@ class DashboardController extends Controller
             
         $pendingTasks = Task::whereIn('status', ['Pending', 'In Progress'])->count();
 
-        // 2. Today's Stats
+        // 2. Books of Accounts Cards Metrics
+        $totalCashInRegister = CashRegisterBook::sum('cash_in');
+        $totalCashInReceipts = CashReceiptsJournal::sum('amount_received');
+        $totalCashIn = $totalCashInRegister + $totalCashInReceipts;
+
+        $totalCashOutRegister = CashRegisterBook::sum('cash_out');
+        $totalCashOutDisbursements = CashDisbursementJournal::sum('amount');
+        $totalCashOut = $totalCashOutRegister + $totalCashOutDisbursements;
+
+        $currentCashBalance = $totalCashIn - $totalCashOut;
+
+        $totalAccountingSales = CashSalesBook::sum('total_amount');
+
+        // 3. Today's Stats
         $todayProduction = Production::whereDate('production_date', Carbon::today())
             ->whereIn('status', ['Completed', 'Approved'])
             ->sum('quantity');
@@ -42,10 +59,10 @@ class DashboardController extends Controller
             ->where('status', 'Paid')
             ->sum('total_amount');
 
-        // 3. Latest Registered Member
+        // 4. Latest Registered Member
         $latestMember = Member::orderBy('membership_date', 'desc')->first();
 
-        // 4. Inventory Stock Alert (Threshold 500kg)
+        // 5. Inventory Stock Alert (Threshold 500kg)
         $prodInventory = Production::whereIn('status', ['Completed', 'Approved'])
             ->select('product_type', DB::raw('SUM(quantity) as prod_qty'))
             ->groupBy('product_type')
@@ -77,7 +94,59 @@ class DashboardController extends Controller
             }
         }
 
-        // 5. Recent Activities
+        // 6. Recent Accounting Transactions
+        $recentTransactions = collect();
+
+        CashRegisterBook::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
+            $recentTransactions->push([
+                'type' => 'Cash Register',
+                'reference' => $r->reference_no,
+                'date' => $r->date->format('Y-m-d'),
+                'description' => $r->description,
+                'amount' => (float)($r->cash_in > 0 ? $r->cash_in : -$r->cash_out),
+                'created_at' => $r->created_at->toDateTimeString()
+            ]);
+        });
+
+        CashDisbursementJournal::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
+            $recentTransactions->push([
+                'type' => 'Cash Disbursement',
+                'reference' => $r->voucher_number,
+                'date' => $r->disbursement_date->format('Y-m-d'),
+                'description' => "Payee: {$r->payee} ({$r->expense_account})",
+                'amount' => -(float)$r->amount,
+                'created_at' => $r->created_at->toDateTimeString()
+            ]);
+        });
+
+        CashSalesBook::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
+            $recentTransactions->push([
+                'type' => 'Sales Book',
+                'reference' => $r->invoice_number,
+                'date' => $r->sale_date->format('Y-m-d'),
+                'description' => "Customer: {$r->customer} ({$r->product})",
+                'amount' => (float)$r->total_amount,
+                'created_at' => $r->created_at->toDateTimeString()
+            ]);
+        });
+
+        CashReceiptsJournal::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
+            $recentTransactions->push([
+                'type' => 'Cash Receipt',
+                'reference' => $r->or_number,
+                'date' => $r->receipt_date->format('Y-m-d'),
+                'description' => "From: {$r->received_from} ({$r->source_of_income})",
+                'amount' => (float)$r->amount_received,
+                'created_at' => $r->created_at->toDateTimeString()
+            ]);
+        });
+
+        $sortedRecentAccounting = $recentTransactions
+            ->sortByDesc('created_at')
+            ->values()
+            ->take(8);
+
+        // 7. Recent Activities
         $recentActivities = ActivityLog::orderBy('created_at', 'desc')
             ->limit(10)
             ->get()
@@ -91,7 +160,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        // 6. Charts - Production Last 6 Months
+        // 8. Charts - Production Last 6 Months
         $productionChart = DB::table('productions')
             ->select(
                 DB::raw("DATE_FORMAT(production_date, '%Y-%m') as month"),
@@ -103,7 +172,7 @@ class DashboardController extends Controller
             ->orderBy('month', 'asc')
             ->get();
 
-        // 7. Charts - Sales Last 6 Months
+        // 9. Charts - Sales Last 6 Months
         $salesChart = DB::table('sales')
             ->select(
                 DB::raw("DATE_FORMAT(sale_date, '%Y-%m') as month"),
@@ -115,7 +184,6 @@ class DashboardController extends Controller
             ->orderBy('month', 'asc')
             ->get();
 
-        // Standardize monthly labels for charting (past 6 months)
         $months = [];
         $productionMonthlyData = [];
         $salesMonthlyData = [];
@@ -124,11 +192,9 @@ class DashboardController extends Controller
             $m = Carbon::now()->subMonths($i)->format('Y-m');
             $months[] = Carbon::now()->subMonths($i)->format('F');
             
-            // Production
             $prodMatch = $productionChart->firstWhere('month', $m);
             $productionMonthlyData[] = $prodMatch ? round($prodMatch->total_qty, 2) : 0;
             
-            // Sales
             $saleMatch = $salesChart->firstWhere('month', $m);
             $salesMonthlyData[] = $saleMatch ? round($saleMatch->total_revenue, 2) : 0;
         }
@@ -138,7 +204,12 @@ class DashboardController extends Controller
                 'total_members' => $totalMembers,
                 'total_production_kg' => round($totalProduction, 2),
                 'total_sales_amount' => round($totalSales, 2),
-                'pending_tasks' => $pendingTasks
+                'pending_tasks' => $pendingTasks,
+                // Accounting Metrics
+                'total_cash_in' => round($totalCashIn, 2),
+                'total_cash_out' => round($totalCashOut, 2),
+                'current_cash_balance' => round($currentCashBalance, 2),
+                'total_accounting_sales' => round($totalAccountingSales, 2),
             ],
             'quick_stats' => [
                 'today_production_kg' => round($todayProduction, 2),
@@ -151,6 +222,7 @@ class DashboardController extends Controller
                 'low_stock_alerts' => $lowStockAlerts
             ],
             'recent_activities' => $recentActivities,
+            'recent_accounting_transactions' => $sortedRecentAccounting,
             'charts' => [
                 'labels' => $months,
                 'production' => $productionMonthlyData,

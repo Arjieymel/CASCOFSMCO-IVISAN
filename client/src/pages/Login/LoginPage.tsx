@@ -34,7 +34,7 @@ const LoginPage = () => {
     try {
       setIsLoading(true);
       await login(username, password);
-      
+
       // Store remember me setting in local storage
       if (rememberMe) {
         localStorage.setItem("remembered_username", username);
@@ -110,7 +110,7 @@ const LoginPage = () => {
 
           {errorMsg && (
             <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-r-lg flex items-center gap-2.5 animate-pulse">
-              <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
+              <FiAlertCircle className="w-5 h-5 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -208,7 +208,7 @@ const LoginPage = () => {
       <div className="hidden lg:flex lg:w-[55%] relative items-center justify-center bg-dark-green overflow-hidden">
         {/* Abstract Coconut Farm Gradient Overlay */}
         <div className="absolute inset-0 bg-linear-to-tr from-dark-green via-primary to-secondary/80 opacity-90 z-10" />
-        
+
         {/* Subtle pattern or farm image placeholders */}
         <div className="absolute inset-0 bg-cover bg-center opacity-30 filter saturate-50" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&q=80&w=1200')" }} />
 

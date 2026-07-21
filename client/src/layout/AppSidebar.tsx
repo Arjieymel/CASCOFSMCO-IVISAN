@@ -1,15 +1,19 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useAuth } from "../contexts/AuthContext";
-import { 
-  FiHome, 
-  FiUsers, 
-  FiPackage, 
-  FiDollarSign, 
-  FiCheckSquare, 
-  FiBarChart2, 
-  FiSettings, 
+import {
+  FiHome,
+  FiUsers,
+  FiPackage,
+  FiDollarSign,
+  FiCheckSquare,
+  FiBarChart2,
+  FiSettings,
   FiUser,
+  FiBookOpen,
+  FiChevronDown,
+  FiChevronRight,
   FiX
 } from "react-icons/fi";
 
@@ -17,6 +21,9 @@ const AppSidebar = () => {
   const { isOpen, toggleSidebar } = useSidebar();
   const { user } = useAuth();
   const location = useLocation();
+
+  const isBooksRoute = location.pathname.startsWith('/books-of-accounts');
+  const [booksOpen, setBooksOpen] = useState(isBooksRoute);
 
   const isCurrentPath = (path: string) => {
     return location.pathname === path;
@@ -33,7 +40,17 @@ const AppSidebar = () => {
     { path: "/settings", text: "Settings", icon: <FiSettings className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
   ];
 
+  const booksSubmenu = [
+    { path: "/books-of-accounts/cash-register", text: "Cash Register Book" },
+    { path: "/books-of-accounts/cash-disbursements", text: "Cash Disbursement Journal" },
+    { path: "/books-of-accounts/sales-book", text: "Cash Register Sales Book" },
+    { path: "/books-of-accounts/cash-receipts", text: "Cash Receipts Journal" },
+    { path: "/books-of-accounts/journal-vouchers", text: "Journal Voucher Register" },
+    { path: "/books-of-accounts/general-ledger", text: "General Ledger" },
+  ];
+
   const allowedMenuItems = menuItems.filter(item => !item.roles || (user && item.roles.includes(user.role)));
+  const isAdmin = user && user.role === 'Administrator';
 
   return (
     <>
@@ -44,12 +61,11 @@ const AppSidebar = () => {
           onClick={toggleSidebar}
         />
       )}
-      
+
       <aside
         id="top-bar-sidebar"
-        className={`fixed top-0 left-0 z-40 w-64 h-full bg-dark-green text-white transition-transform duration-300 ${
-          isOpen ? "-translate-x-full" : "translate-x-0"
-        } sm:translate-x-0 border-r border-dark-green/30 shadow-xl flex flex-col`}
+        className={`fixed top-0 left-0 z-40 w-64 h-full bg-dark-green text-white transition-transform duration-300 ${isOpen ? "-translate-x-full" : "translate-x-0"
+          } sm:translate-x-0 border-r border-dark-green/30 shadow-xl flex flex-col`}
         aria-label="Sidebar"
       >
         {/* Brand Header */}
@@ -63,7 +79,7 @@ const AppSidebar = () => {
               <span className="text-[10px] text-accent font-medium uppercase tracking-widest block">Capiz Coconut</span>
             </div>
           </Link>
-          <button 
+          <button
             onClick={toggleSidebar}
             className="sm:hidden p-1.5 rounded-lg hover:bg-sidebar-hover text-gray-300"
           >
@@ -80,11 +96,10 @@ const AppSidebar = () => {
                 <li key={index}>
                   <Link
                     to={item.path}
-                    className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                      active
+                    className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group ${active
                         ? "bg-accent text-dark-green font-semibold shadow-md translate-x-1"
                         : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
-                    }`}
+                      }`}
                   >
                     <span className={`transition-transform duration-200 group-hover:scale-110 ${active ? 'text-dark-green' : 'text-gray-400 group-hover:text-white'}`}>
                       {item.icon}
@@ -94,17 +109,64 @@ const AppSidebar = () => {
                 </li>
               );
             })}
+
+            {/* 📚 Books of Accounts (Administrator Only) */}
+            {isAdmin && (
+              <li className="pt-1">
+                <button
+                  onClick={() => setBooksOpen(!booksOpen)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${
+                    isBooksRoute
+                      ? "bg-sidebar-hover text-accent font-semibold"
+                      : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <FiBookOpen className={`w-5 h-5 ${isBooksRoute ? 'text-accent' : 'text-gray-400 group-hover:text-white'}`} />
+                    <span className="text-sm tracking-wide">📚 Books of Accounts</span>
+                  </div>
+                  {booksOpen ? (
+                    <FiChevronDown className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <FiChevronRight className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+
+                {/* Submenu */}
+                {booksOpen && (
+                  <ul className="mt-1.5 ml-4 pl-3 border-l border-sidebar-hover/60 space-y-1">
+                    {booksSubmenu.map((sub, sIdx) => {
+                      const subActive = isCurrentPath(sub.path);
+                      return (
+                        <li key={sIdx}>
+                          <Link
+                            to={sub.path}
+                            className={`block px-3 py-2 rounded-lg text-xs tracking-wide transition-all ${
+                              subActive
+                                ? "bg-accent text-dark-green font-bold shadow-xs"
+                                : "text-gray-300 hover:text-white hover:bg-sidebar-hover/50"
+                            }`}
+                          >
+                            {sub.text}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            )}
           </ul>
         </div>
 
         {/* Logged in User Profile Info (Footer of Sidebar) */}
         {user && (
           <div className="p-4 border-t border-sidebar-hover/30 bg-dark-green/85 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-sidebar-hover border border-sidebar-hover/60 overflow-hidden flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-sidebar-hover border border-sidebar-hover/60 overflow-hidden flex items-center justify-center shrink-0">
               {user.profile_picture_url ? (
-                <img 
-                  src={user.profile_picture_url} 
-                  alt="profile" 
+                <img
+                  src={user.profile_picture_url}
+                  alt="profile"
                   className="w-full h-full object-cover"
                 />
               ) : (

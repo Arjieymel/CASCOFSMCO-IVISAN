@@ -101,3 +101,102 @@ export interface ActivityLog {
   time_ago: string;
   created_at: string;
 }
+
+// 📚 Books of Accounts Interfaces
+export interface CashRegisterRecord {
+  id: number;
+  date: string;
+  reference_no: string;
+  description: string;
+  cash_in: number | string;
+  cash_out: number | string;
+  running_balance: number | string;
+  recorded_by: string;
+  user_id?: number | null;
+  remarks?: string | null;
+  user?: User;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CashDisbursementRecord {
+  id: number;
+  voucher_number: string;
+  disbursement_date: string;
+  payee: string;
+  description: string;
+  expense_account: string;
+  amount: number | string;
+  payment_method: string;
+  approved_by: string;
+  user_id?: number | null;
+  remarks?: string | null;
+  user?: User;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CashSalesBookRecord {
+  id: number;
+  invoice_number: string;
+  sale_date: string;
+  customer: string;
+  product: string;
+  quantity: number | string;
+  unit_price: number | string;
+  total_amount: number | string;
+  payment_method: string;
+  recorded_by: string;
+  user_id?: number | null;
+  user?: User;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CashReceiptRecord {
+  id: number;
+  or_number: string;
+  receipt_date: string;
+  received_from: string;
+  description: string;
+  source_of_income: string;
+  amount_received: number | string;
+  recorded_by: string;
+  user_id?: number | null;
+  remarks?: string | null;
+  user?: User;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface JournalVoucherRecord {
+  id: number;
+  voucher_number: string;
+  voucher_date: string;
+  description: string;
+  debit_account: string;
+  credit_account: string;
+  amount: number | string;
+  prepared_by: string;
+  approved_by: string;
+  status: 'Draft' | 'Posted' | 'Approved' | 'Cancelled';
+  user_id?: number | null;
+  user?: User;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface GeneralLedgerRecord {
+  id: number;
+  account_code: string;
+  account_title: string;
+  transaction_date: string;
+  reference_number: string;
+  debit: number | string;
+  credit: number | string;
+  running_balance: number | string;
+  source_module?: string | null;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

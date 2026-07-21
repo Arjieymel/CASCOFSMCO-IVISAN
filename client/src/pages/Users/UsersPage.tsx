@@ -51,117 +51,117 @@ const UserFormFields = ({
   const [showPassword, setShowPassword] = useState(false);
   return (
     <div className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-          Username <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          required
-          minLength={4}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="e.g. jdelacruz"
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        {formErrors.username && <p className="text-red-500 text-xs mt-1">{formErrors.username[0]}</p>}
-      </div>
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-          Email Address <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="e.g. staff@cascofamco.ph"
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email[0]}</p>}
-      </div>
-    </div>
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">System Role</label>
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          {rolesList.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Account Status</label>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          {statusesList.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </div>
-    </div>
-    {!isEdit && (
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-            Password <span className="text-red-500">*</span>
+            Username <span className="text-red-500">*</span>
           </label>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword?.(e.target.value)}
-              className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-            >
-              {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
-            </button>
-          </div>
-          {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
+          <input
+            type="text"
+            required
+            minLength={4}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="e.g. jdelacruz"
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          {formErrors.username && <p className="text-red-500 text-xs mt-1">{formErrors.username[0]}</p>}
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Confirm Password</label>
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              required
-              minLength={6}
-              value={passwordConfirmation}
-              onChange={(e) => setPasswordConfirmation?.(e.target.value)}
-              className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
-            >
-              {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
-            </button>
-          </div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+            Email Address <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="e.g. staff@cascofamco.ph"
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email[0]}</p>}
         </div>
       </div>
-    )}
-    <div>
-      <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
-        Profile Photo {isEdit && <span className="normal-case text-slate-400 font-normal">(leave blank to keep current)</span>}
-      </label>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
-        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-primary hover:file:bg-green-100 cursor-pointer"
-      />
-    </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">System Role</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {rolesList.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Account Status</label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {statusesList.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      {!isEdit && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+              Password <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword?.(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+              </button>
+            </div>
+            {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Confirm Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={passwordConfirmation}
+                onChange={(e) => setPasswordConfirmation?.(e.target.value)}
+                className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+          Profile Photo {isEdit && <span className="normal-case text-slate-400 font-normal">(leave blank to keep current)</span>}
+        </label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
+          className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-primary hover:file:bg-green-100 cursor-pointer"
+        />
+      </div>
     </div>
   );
 };
@@ -413,7 +413,7 @@ const UsersPage = () => {
                     <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center shrink-0">
                             {u.profile_picture_url ? (
                               <img src={u.profile_picture_url} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -433,11 +433,10 @@ const UsersPage = () => {
                       </td>
                       <td className="px-6 py-4 text-slate-500 text-sm">{u.email || "—"}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                          u.status === "Active"
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${u.status === "Active"
                             ? "bg-green-50 text-green-700 border-green-200"
                             : "bg-red-50 text-red-700 border-red-200"
-                        }`}>
+                          }`}>
                           {u.status}
                         </span>
                       </td>
@@ -466,11 +465,10 @@ const UsersPage = () => {
                           <button
                             onClick={() => handleToggleStatus(u)}
                             title={u.status === "Active" ? "Deactivate" : "Reactivate"}
-                            className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                              u.status === "Active"
+                            className={`p-1.5 rounded-lg cursor-pointer transition-colors ${u.status === "Active"
                                 ? "text-red-500 hover:bg-red-50"
                                 : "text-green-600 hover:bg-green-50"
-                            }`}
+                              }`}
                           >
                             {u.status === "Active" ? (
                               <FiToggleRight className="w-4 h-4" />

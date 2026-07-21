@@ -40,7 +40,7 @@ class UserController extends Controller
         // Sorting
         $sortColumn = $request->input('sort_by', 'created_at');
         $sortDirection = $request->input('order', 'desc');
-        
+
         $allowedSorts = ['id', 'username', 'role', 'status', 'email', 'last_login', 'created_at'];
         if (in_array($sortColumn, $allowedSorts)) {
             $query->orderBy($sortColumn, $sortDirection);
@@ -101,7 +101,7 @@ class UserController extends Controller
     /**
      * Display the specified user.
      */
-    public function show($id)
+    public function show(int $id)
     {
         $user = User::find($id);
 
@@ -117,7 +117,7 @@ class UserController extends Controller
     /**
      * Update the specified user.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
         $user = User::find($id);
 
@@ -177,7 +177,7 @@ class UserController extends Controller
     /**
      * Remove the specified user from storage.
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id)
     {
         $user = User::find($id);
 
@@ -220,7 +220,7 @@ class UserController extends Controller
     /**
      * Reset password for a user.
      */
-    public function resetPassword(Request $request, $id)
+    public function resetPassword(Request $request, int $id)
     {
         $user = User::find($id);
 
@@ -252,7 +252,7 @@ class UserController extends Controller
     /**
      * Deactivate a user.
      */
-    public function deactivate(Request $request, $id)
+    public function deactivate(Request $request, int $id)
     {
         $user = User::find($id);
 

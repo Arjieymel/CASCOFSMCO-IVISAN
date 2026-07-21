@@ -9,7 +9,11 @@ import {
   FiActivity,
   FiAlertTriangle,
   FiTrendingUp,
-  FiClock
+  FiClock,
+  FiArrowDownLeft,
+  FiArrowUpRight,
+  FiCreditCard,
+  FiBookOpen
 } from "react-icons/fi";
 import {
   Chart as ChartJS,
@@ -43,6 +47,10 @@ interface DashboardData {
     total_production_kg: number;
     total_sales_amount: number;
     pending_tasks: number;
+    total_cash_in?: number;
+    total_cash_out?: number;
+    current_cash_balance?: number;
+    total_accounting_sales?: number;
   };
   quick_stats: {
     today_production_kg: number;
@@ -62,6 +70,14 @@ interface DashboardData {
     username: string;
     action: string;
     time_ago: string;
+    created_at: string;
+  }>;
+  recent_accounting_transactions?: Array<{
+    type: string;
+    reference: string;
+    date: string;
+    description: string;
+    amount: number;
     created_at: string;
   }>;
   charts: {
@@ -182,7 +198,7 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* KPI Cards Grid */}
+      {/* Primary KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Total Members */}
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-5 hover:shadow-md transition-shadow">
@@ -228,6 +244,61 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+
+      {/* 📚 Books of Accounts Dashboard Summary Cards (Accessible to Administrator) */}
+      {user?.role === 'Administrator' && (
+        <div>
+          <div className="flex items-center gap-2 mb-3.5">
+            <span className="text-lg">📚</span>
+            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Books of Accounts Financial Overview</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Total Cash In */}
+            <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 shadow-xs flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-emerald-500 text-white shadow-xs">
+                <FiArrowDownLeft className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Total Cash In</p>
+                <h3 className="text-xl font-extrabold text-emerald-700 mt-0.5">₱ {(data.cards.total_cash_in || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+              </div>
+            </div>
+
+            {/* Total Cash Out */}
+            <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 shadow-xs flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-rose-500 text-white shadow-xs">
+                <FiArrowUpRight className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-rose-800 uppercase tracking-wider">Total Cash Out</p>
+                <h3 className="text-xl font-extrabold text-rose-700 mt-0.5">₱ {(data.cards.total_cash_out || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+              </div>
+            </div>
+
+            {/* Current Cash Balance */}
+            <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-md flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-slate-800 text-accent">
+                <FiCreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Cash Balance</p>
+                <h3 className="text-xl font-extrabold text-white mt-0.5">₱ {(data.cards.current_cash_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+              </div>
+            </div>
+
+            {/* Total Accounting Sales */}
+            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-xs flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-blue-600 text-white shadow-xs">
+                <FiDollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">Total Accounting Sales</p>
+                <h3 className="text-xl font-extrabold text-blue-700 mt-0.5">₱ {(data.cards.total_accounting_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Analytics Graph Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -276,7 +347,7 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Quick Statistics & Recent Activities */}
+      {/* Quick Statistics, Recent Accounting & System Activity Logs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Statistics column */}
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
@@ -310,32 +381,71 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Recent Activities column */}
+        {/* Recent Accounting Transactions Table Widget */}
         <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs lg:col-span-2 flex flex-col">
           <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <FiActivity className="text-primary w-5 h-5" />
-            <span>System Activity Logs</span>
+            <FiBookOpen className="text-primary w-5 h-5" />
+            <span>Recent Accounting Transactions</span>
           </h3>
 
-          <div className="flex-1 overflow-y-auto max-h-[280px] space-y-3.5 pr-2">
-            {data.recent_activities.length > 0 ? (
-              data.recent_activities.map((activity) => (
-                <div key={activity.id} className="flex gap-3 text-sm items-start bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                  <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
-                    {activity.username.substring(0, 2)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-slate-700 leading-tight">
-                      <span className="font-semibold text-slate-800">{activity.username}</span> {activity.action}
-                    </p>
-                    <span className="text-[10px] text-slate-400 block mt-1">{activity.time_ago} ({activity.created_at})</span>
-                  </div>
-                </div>
-              ))
+          <div className="flex-1 overflow-x-auto">
+            {data.recent_accounting_transactions && data.recent_accounting_transactions.length > 0 ? (
+              <table className="min-w-full divide-y divide-slate-100 text-xs">
+                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Type</th>
+                    <th className="px-3 py-2 text-left">Ref</th>
+                    <th className="px-3 py-2 text-left">Date</th>
+                    <th className="px-3 py-2 text-left">Description</th>
+                    <th className="px-3 py-2 text-right">Amount (₱)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {data.recent_accounting_transactions.map((tx, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50">
+                      <td className="px-3 py-2.5 font-medium text-slate-500">{tx.type}</td>
+                      <td className="px-3 py-2.5 font-bold text-primary">{tx.reference}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">{tx.date}</td>
+                      <td className="px-3 py-2.5 truncate max-w-xs">{tx.description}</td>
+                      <td className={`px-3 py-2.5 text-right font-bold ${tx.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        ₱ {Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
-              <p className="text-slate-400 text-sm text-center py-10">No recent logs recorded.</p>
+              <p className="text-slate-400 text-xs text-center py-10">No accounting transactions recorded yet.</p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* System Activity Logs */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex flex-col">
+        <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
+          <FiActivity className="text-primary w-5 h-5" />
+          <span>System Audit & Activity Logs</span>
+        </h3>
+
+        <div className="overflow-y-auto max-h-60 space-y-3.5 pr-2">
+          {data.recent_activities.length > 0 ? (
+            data.recent_activities.map((activity) => (
+              <div key={activity.id} className="flex gap-3 text-sm items-start bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                  {activity.username.substring(0, 2)}
+                </div>
+                <div className="flex-1">
+                  <p className="text-slate-700 leading-tight">
+                    <span className="font-semibold text-slate-800">{activity.username}</span> {activity.action}
+                  </p>
+                  <span className="text-[10px] text-slate-400 block mt-1">{activity.time_ago} ({activity.created_at})</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-400 text-sm text-center py-10">No recent logs recorded.</p>
+          )}
         </div>
       </div>
     </div>
