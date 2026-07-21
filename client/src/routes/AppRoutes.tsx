@@ -2,6 +2,7 @@ import { Route, Routes, Navigate } from "react-router-dom";
 import AppLayout from "../layout/AppLayout";
 import LoginPage from "../pages/Login/LoginPage";
 import { AuthProvider } from "../contexts/AuthContext";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import ProtectedRoute from "./ProtectedRoute";
 import AdminRoute from "./AdminRoute";
 
@@ -27,39 +28,41 @@ const AppRoutes = () => {
   return (
     <>
       <AuthProvider>
-        <Routes>
-          {/* Public Route */}
-          <Route path="/" element={<LoginPage />} />
+        <ThemeProvider>
+          <Routes>
+            {/* Public Route */}
+            <Route path="/" element={<LoginPage />} />
 
-          {/* Protected Routes — wrapped by AppLayout */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/members" element={<MembersPage />} />
-            <Route path="/productions" element={<ProductionsPage />} />
-            <Route path="/sales" element={<SalesPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            {/* Protected Routes — wrapped by AppLayout */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/members" element={<MembersPage />} />
+              <Route path="/productions" element={<ProductionsPage />} />
+              <Route path="/sales" element={<SalesPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
 
-            {/* 📚 Books of Accounts Routes (Administrator Only) */}
-            <Route path="/books-of-accounts/cash-register" element={<AdminRoute><CashRegisterPage /></AdminRoute>} />
-            <Route path="/books-of-accounts/cash-disbursements" element={<AdminRoute><CashDisbursementPage /></AdminRoute>} />
-            <Route path="/books-of-accounts/sales-book" element={<AdminRoute><CashSalesBookPage /></AdminRoute>} />
-            <Route path="/books-of-accounts/cash-receipts" element={<AdminRoute><CashReceiptsPage /></AdminRoute>} />
-            <Route path="/books-of-accounts/journal-vouchers" element={<AdminRoute><JournalVoucherPage /></AdminRoute>} />
-            <Route path="/books-of-accounts/general-ledger" element={<AdminRoute><GeneralLedgerPage /></AdminRoute>} />
+              {/* 📚 Books of Accounts Routes (Administrator Only) */}
+              <Route path="/books-of-accounts/cash-register" element={<AdminRoute><CashRegisterPage /></AdminRoute>} />
+              <Route path="/books-of-accounts/cash-disbursements" element={<AdminRoute><CashDisbursementPage /></AdminRoute>} />
+              <Route path="/books-of-accounts/sales-book" element={<AdminRoute><CashSalesBookPage /></AdminRoute>} />
+              <Route path="/books-of-accounts/cash-receipts" element={<AdminRoute><CashReceiptsPage /></AdminRoute>} />
+              <Route path="/books-of-accounts/journal-vouchers" element={<AdminRoute><JournalVoucherPage /></AdminRoute>} />
+              <Route path="/books-of-accounts/general-ledger" element={<AdminRoute><GeneralLedgerPage /></AdminRoute>} />
 
-            {/* Fallback — redirect unknown protected paths to dashboard */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-        </Routes>
+              {/* Fallback — redirect unknown protected paths to dashboard */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+          </Routes>
+        </ThemeProvider>
       </AuthProvider>
     </>
   );

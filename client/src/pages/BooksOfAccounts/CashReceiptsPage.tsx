@@ -1,15 +1,29 @@
 import { useState, useEffect, type FormEvent } from "react";
 import BooksOfAccountsService from "../../services/BooksOfAccountsService";
-import type { CashReceiptRecord } from "../../Interfaces";
-import SearchBar from "../../components/SearchBar";
+import MemberService from "../../services/MemberService";
+import type { CashReceiptRecord, Member } from "../../Interfaces";
 import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
 import { exportToExcel, exportToPDF, printReport } from "../../utils/exportUtils";
-import { FiPlus, FiEdit, FiTrash2, FiEye, FiPrinter, FiFileText, FiDownload, FiCalendar } from "react-icons/fi";
+import {
+  FiPlus,
+  FiEdit,
+  FiTrash2,
+  FiEye,
+  FiPrinter,
+  FiFileText,
+  FiDownload,
+  FiCalendar,
+  FiSearch,
+  FiFilter,
+  FiX,
+  FiInfo
+} from "react-icons/fi";
 import Swal from "sweetalert2";
 
 const CashReceiptsPage = () => {
   const [records, setRecords] = useState<CashReceiptRecord[]>([]);
+  const [activeMembers, setActiveMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -21,32 +35,29 @@ const CashReceiptsPage = () => {
   const [sortBy, setSortBy] = useState("receipt_date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Modals
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Member searchable dropdown states
+  const [memberSearch, setMemberSearch] = useState("");
+  const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState(false);
+
+  // View modal state
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<CashReceiptRecord | null>(null);
 
   // Form Fields
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split("T")[0]);
   const [orNumber, setOrNumber] = useState("");
-  const [receiptDate, setReceiptDate] = useState("");
   const [receivedFrom, setReceivedFrom] = useState("");
   const [description, setDescription] = useState("");
-  const [sourceOfIncome, setSourceOfIncome] = useState("Sales Revenue");
   const [amountReceived, setAmountReceived] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "GCash" | "Bank Transfer">("Cash");
+  const [sourceOfIncome, setSourceOfIncome] = useState("Share Capital");
   const [remarks, setRemarks] = useState("");
 
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
-
-  const sourcesList = [
-    "Sales Revenue",
-    "Membership Capital Fees",
-    "Service & Processing Fees",
-    "Government / CDA Grant",
-    "Interest Income",
-    "Other Income"
-  ];
 
   const fetchRecords = async (page: number = 1) => {
     try {
@@ -54,9 +65,9 @@ const CashReceiptsPage = () => {
       const res = await BooksOfAccountsService.loadCashReceipts(
         page, search, startDate, endDate, 10, sortBy, sortOrder
       );
-      setRecords(res.data.data);
-      setCurrentPage(res.data.current_page);
-      setLastPage(res.data.last_page);
+      setRecords(res.data.data || []);
+      setCurrentPage(res.data.current_page || 1);
+      setLastPage(res.data.last_page || 1);
     } catch (err) {
       console.error("Failed to load receipts: ", err);
       Swal.fire("Error", "Could not fetch Cash Receipts Journal records.", "error");
@@ -65,9 +76,32 @@ const CashReceiptsPage = () => {
     }
   };
 
+  const fetchActiveMembers = async () => {
+    try {
+      const res = await MemberService.loadMembers(1, "", "Active", "", 500);
+      setActiveMembers(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load active members: ", err);
+    }
+  };
+
   useEffect(() => {
     fetchRecords(1);
-  }, [search, startDate, endDate, sortBy, sortOrder]);
+  }, [search, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchActiveMembers();
+
+    // Setup listener to close searchable dropdown when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(".member-dropdown-container")) {
+        setIsMemberDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -78,29 +112,46 @@ const CashReceiptsPage = () => {
     }
   };
 
-  const openAddModal = () => {
-    setOrNumber("");
+  const handleClear = () => {
+    setIsEditing(false);
+    setEditingId(null);
     setReceiptDate(new Date().toISOString().split("T")[0]);
+    setOrNumber("");
     setReceivedFrom("");
     setDescription("");
-    setSourceOfIncome("Sales Revenue");
     setAmountReceived("");
+    setPaymentMethod("Cash");
+    setSourceOfIncome("Share Capital");
     setRemarks("");
     setFormErrors({});
-    setIsAddModalOpen(true);
   };
 
-  const openEditModal = (r: CashReceiptRecord) => {
-    setSelectedRecord(r);
-    setOrNumber(r.or_number);
+  const openEditRecord = (r: CashReceiptRecord) => {
+    setIsEditing(true);
+    setEditingId(r.id);
     setReceiptDate(r.receipt_date ? (typeof r.receipt_date === 'string' ? r.receipt_date.split('T')[0] : r.receipt_date) : "");
+    setOrNumber(r.or_number);
     setReceivedFrom(r.received_from);
     setDescription(r.description);
-    setSourceOfIncome(r.source_of_income);
     setAmountReceived(r.amount_received.toString());
-    setRemarks(r.remarks || "");
+    setSourceOfIncome(r.source_of_income);
+
+    // Parse payment method & remarks
+    let method: "Cash" | "GCash" | "Bank Transfer" = "Cash";
+    let restRemarks = r.remarks || "";
+    if (r.remarks && r.remarks.startsWith("[Method: ")) {
+      const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
+      if (match) {
+        method = match[1] as any;
+        restRemarks = match[2];
+      }
+    }
+    setPaymentMethod(method);
+    setRemarks(restRemarks);
     setFormErrors({});
-    setIsEditModalOpen(true);
+
+    // Scroll form into view on mobile
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const openViewModal = (r: CashReceiptRecord) => {
@@ -108,59 +159,49 @@ const CashReceiptsPage = () => {
     setIsViewModalOpen(true);
   };
 
-  const handleAdd = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormErrors({});
+    setSubmitLoading(true);
+
+    // Pack payment method into remarks
+    const packedRemarks = `[Method: ${paymentMethod}] ${remarks.trim()}`.trim();
+
+    const payload = {
+      or_number: orNumber || undefined,
+      receipt_date: receiptDate,
+      received_from: receivedFrom,
+      description,
+      source_of_income: sourceOfIncome,
+      amount_received: parseFloat(amountReceived),
+      remarks: packedRemarks
+    };
 
     try {
-      setSubmitLoading(true);
-      await BooksOfAccountsService.storeCashReceipt({
-        or_number: orNumber || undefined,
-        receipt_date: receiptDate,
-        received_from: receivedFrom,
-        description,
-        source_of_income: sourceOfIncome,
-        amount_received: parseFloat(amountReceived),
-        remarks
-      });
-      setIsAddModalOpen(false);
-      Swal.fire("Saved", "Official receipt recorded successfully.", "success");
-      fetchRecords(currentPage);
-    } catch (err: any) {
-      if (err.response && err.response.status === 422) {
-        setFormErrors(err.response.data.errors);
+      if (isEditing && editingId) {
+        await BooksOfAccountsService.updateCashReceipt(editingId, payload);
+        Swal.fire({
+          title: "Saved",
+          text: "Receipt record updated successfully.",
+          icon: "success",
+          confirmButtonColor: "#1F6B3D"
+        });
       } else {
-        Swal.fire("Error", "Failed to record cash receipt.", "error");
+        await BooksOfAccountsService.storeCashReceipt(payload);
+        Swal.fire({
+          title: "Saved",
+          text: "Official receipt recorded successfully.",
+          icon: "success",
+          confirmButtonColor: "#1F6B3D"
+        });
       }
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  const handleEdit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selectedRecord) return;
-    setFormErrors({});
-
-    try {
-      setSubmitLoading(true);
-      await BooksOfAccountsService.updateCashReceipt(selectedRecord.id, {
-        or_number: orNumber,
-        receipt_date: receiptDate,
-        received_from: receivedFrom,
-        description,
-        source_of_income: sourceOfIncome,
-        amount_received: parseFloat(amountReceived),
-        remarks
-      });
-      setIsEditModalOpen(false);
-      Swal.fire("Saved", "Receipt record updated successfully.", "success");
+      handleClear();
       fetchRecords(currentPage);
     } catch (err: any) {
       if (err.response && err.response.status === 422) {
         setFormErrors(err.response.data.errors);
       } else {
-        Swal.fire("Error", "Failed to update record.", "error");
+        Swal.fire("Error", "Failed to save record.", "error");
       }
     } finally {
       setSubmitLoading(false);
@@ -183,7 +224,12 @@ const CashReceiptsPage = () => {
 
     try {
       await BooksOfAccountsService.destroyCashReceipt(r.id);
-      Swal.fire("Deleted", "Receipt record deleted successfully.", "success");
+      Swal.fire({
+        title: "Deleted",
+        text: "Receipt record deleted successfully.",
+        icon: "success",
+        confirmButtonColor: "#1F6B3D"
+      });
       fetchRecords(currentPage);
     } catch (err) {
       console.error(err);
@@ -191,37 +237,146 @@ const CashReceiptsPage = () => {
     }
   };
 
+  // Calculations for Summary Cards
+  const getTotals = () => {
+    let cashOnHand = 0;
+    let cashInBank = 0;
+    let savingsDeposit = 0;
+    let shareCapital = 0;
+    let loanPayment = 0;
+    let interestIncome = 0;
+    let miscIncome = 0;
+    let grandTotal = 0;
+
+    records.forEach(r => {
+      const amt = parseFloat(r.amount_received.toString()) || 0;
+
+      // Determine payment method
+      let method = "Cash";
+      if (r.remarks && r.remarks.startsWith("[Method: ")) {
+        const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]/);
+        if (match) method = match[1];
+      }
+
+      if (method === "Cash") {
+        cashOnHand += amt;
+      } else {
+        cashInBank += amt;
+      }
+
+      // Classify
+      const cls = r.source_of_income;
+      if (cls === "Savings Deposit") {
+        savingsDeposit += amt;
+      } else if (cls === "Share Capital") {
+        shareCapital += amt;
+      } else if (cls === "Loan Payment") {
+        loanPayment += amt;
+      } else if (cls === "Interest Income") {
+        interestIncome += amt;
+      } else {
+        miscIncome += amt;
+      }
+
+      grandTotal += amt;
+    });
+
+    return {
+      cashOnHand,
+      cashInBank,
+      savingsDeposit,
+      shareCapital,
+      loanPayment,
+      interestIncome,
+      miscIncome,
+      grandTotal
+    };
+  };
+
+  const totals = getTotals();
+
+  // Export & Print functions
   const handlePrintReceipt = (r: CashReceiptRecord) => {
+    // Parse payment method
+    let method = "Cash";
+    let restRemarks = r.remarks || "";
+    if (r.remarks && r.remarks.startsWith("[Method: ")) {
+      const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
+      if (match) {
+        method = match[1];
+        restRemarks = match[2];
+      }
+    }
+
     const headers = ["Field", "Details"];
     const rows = [
       ["Official Receipt No", r.or_number],
       ["Receipt Date", r.receipt_date],
       ["Received From", r.received_from],
-      ["Source of Income", r.source_of_income],
+      ["Payment Method", method],
+      ["Income Classification", r.source_of_income],
       ["Amount Received", `₱ ${parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
-      ["Description", r.description],
+      ["Particulars", r.description],
       ["Recorded By", r.recorded_by],
-      ["Remarks", r.remarks || "N/A"]
+      ["Remarks", restRemarks || "N/A"]
     ];
     printReport(`Official Receipt - ${r.or_number}`, headers, rows);
   };
 
   const handleExportExcel = () => {
-    const dataToExport = records.map(r => ({
-      "OR Number": r.or_number,
-      "Date": r.receipt_date,
-      "Received From": r.received_from,
-      "Source of Income": r.source_of_income,
-      "Amount Received (₱)": r.amount_received,
-      "Description": r.description,
-      "Recorded By": r.recorded_by,
-      "Remarks": r.remarks || ""
-    }));
-    exportToExcel(dataToExport, `Cash_Receipts_Journal_${new Date().toISOString().split("T")[0]}`);
+    const dataToExport = records.map(r => {
+      let method = "Cash";
+      let restRemarks = r.remarks || "";
+      if (r.remarks && r.remarks.startsWith("[Method: ")) {
+        const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
+        if (match) {
+          method = match[1];
+          restRemarks = match[2];
+        }
+      }
+      return {
+        "OR Number": r.or_number,
+        "Date": r.receipt_date,
+        "Received From": r.received_from,
+        "Payment Method": method,
+        "Income Classification": r.source_of_income,
+        "Amount Received (₱)": r.amount_received,
+        "Particulars": r.description,
+        "Recorded By": r.recorded_by,
+        "Remarks": restRemarks || ""
+      };
+    });
+    exportToExcel(dataToExport, `Cash_Receipts_Journal_Excel_${new Date().toISOString().split("T")[0]}`);
+  };
+
+  const handleExportCSV = () => {
+    const dataToExport = records.map(r => {
+      let method = "Cash";
+      let restRemarks = r.remarks || "";
+      if (r.remarks && r.remarks.startsWith("[Method: ")) {
+        const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
+        if (match) {
+          method = match[1];
+          restRemarks = match[2];
+        }
+      }
+      return {
+        "OR Number": r.or_number,
+        "Date": r.receipt_date,
+        "Received From": r.received_from,
+        "Payment Method": method,
+        "Income Classification": r.source_of_income,
+        "Amount Received (₱)": r.amount_received,
+        "Particulars": r.description,
+        "Recorded By": r.recorded_by,
+        "Remarks": restRemarks || ""
+      };
+    });
+    exportToExcel(dataToExport, `Cash_Receipts_Journal_CSV_${new Date().toISOString().split("T")[0]}`);
   };
 
   const handlePrint = () => {
-    const headers = ["OR Number", "Date", "Received From", "Source of Income", "Amount Received (₱)", "Recorded By"];
+    const headers = ["OR Number", "Date", "Received From", "Classification", "Total Amount (₱)", "Recorded By"];
     const rows = records.map(r => [
       r.or_number,
       r.receipt_date,
@@ -230,11 +385,11 @@ const CashReceiptsPage = () => {
       `₱ ${parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       r.recorded_by
     ]);
-    printReport("Cash Receipts Journal", headers, rows);
+    printReport("Cash Receipts Journal Summary", headers, rows);
   };
 
   const handleExportPDF = () => {
-    const headers = ["OR Number", "Date", "Received From", "Source of Income", "Amount Received (₱)", "Recorded By"];
+    const headers = ["OR Number", "Date", "Received From", "Classification", "Total Amount (₱)", "Recorded By"];
     const rows = records.map(r => [
       r.or_number,
       r.receipt_date,
@@ -243,471 +398,707 @@ const CashReceiptsPage = () => {
       `₱ ${parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       r.recorded_by
     ]);
-    exportToPDF("Cash Receipts Journal", headers, rows);
+    exportToPDF("Cash Receipts Journal Summary", headers, rows);
   };
+
+  const filteredMembers = activeMembers.filter(m => {
+    const fullName = `${m.firstname} ${m.lastname}`.toLowerCase();
+    const code = m.member_code.toLowerCase();
+    const query = memberSearch.toLowerCase();
+    return fullName.includes(query) || code.includes(query);
+  });
 
   return (
     <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-xs gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🧾</span>
-            <h1 className="text-xl font-bold text-slate-800">Cash Receipts Journal</h1>
-          </div>
-          <p className="text-sm text-slate-500 mt-0.5">Records all money received by the cooperative with Official Receipt numbers.</p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <FiPrinter className="w-4 h-4 text-slate-500" />
-            <span>Print Journal</span>
-          </button>
-
-          <button
-            onClick={handleExportPDF}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <FiFileText className="w-4 h-4 text-red-500" />
-            <span>Export PDF</span>
-          </button>
-
-          <button
-            onClick={handleExportExcel}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <FiDownload className="w-4 h-4 text-emerald-600" />
-            <span>Export Excel</span>
-          </button>
-
-          <button
-            onClick={openAddModal}
-            className="bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer text-xs"
-          >
-            <FiPlus className="w-4 h-4" />
-            <span>Add Receipt</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Search & Filters */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
-          <SearchBar value={search} onChange={setSearch} placeholder="Search OR number, received from, income source..." />
-
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <FiCalendar className="w-4 h-4 text-slate-400" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:ring-1 focus:ring-primary focus:outline-none"
-            />
-            <span>to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:ring-1 focus:ring-primary focus:outline-none"
-            />
-            {(startDate || endDate) && (
-              <button
-                onClick={() => { setStartDate(""); setEndDate(""); }}
-                className="text-primary hover:underline font-bold text-[11px] ml-1 cursor-pointer"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-400 text-sm">Fetching cash receipts records...</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100 text-sm">
-              <thead className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-xs">
-                <tr>
-                  <th onClick={() => handleSort("or_number")} className="px-6 py-4 text-left cursor-pointer hover:text-slate-700">
-                    OR Number {sortBy === "or_number" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-                  </th>
-                  <th onClick={() => handleSort("receipt_date")} className="px-6 py-4 text-left cursor-pointer hover:text-slate-700">
-                    Date {sortBy === "receipt_date" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-                  </th>
-                  <th onClick={() => handleSort("received_from")} className="px-6 py-4 text-left cursor-pointer hover:text-slate-700">
-                    Received From {sortBy === "received_from" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-                  </th>
-                  <th onClick={() => handleSort("source_of_income")} className="px-6 py-4 text-left cursor-pointer hover:text-slate-700">
-                    Source of Income {sortBy === "source_of_income" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-                  </th>
-                  <th onClick={() => handleSort("amount_received")} className="px-6 py-4 text-right cursor-pointer hover:text-slate-700">
-                    Amount Received (₱) {sortBy === "amount_received" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-                  </th>
-                  <th className="px-6 py-4 text-left">Recorded By</th>
-                  <th className="px-6 py-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {records.length > 0 ? (
-                  records.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-primary">{r.or_number}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{r.receipt_date}</td>
-                      <td className="px-6 py-4 font-semibold text-slate-800">{r.received_from}</td>
-                      <td className="px-6 py-4 text-slate-600">{r.source_of_income}</td>
-                      <td className="px-6 py-4 text-right font-bold text-emerald-600">
-                        ₱ {parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-6 py-4 text-xs font-medium text-slate-500">{r.recorded_by}</td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex justify-center items-center gap-1">
-                          <button
-                            onClick={() => openViewModal(r)}
-                            title="View Details"
-                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
-                          >
-                            <FiEye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handlePrintReceipt(r)}
-                            title="Print Receipt"
-                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 cursor-pointer"
-                          >
-                            <FiPrinter className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => openEditModal(r)}
-                            title="Edit Receipt"
-                            className="p-1.5 rounded-lg text-primary hover:bg-green-50 cursor-pointer"
-                          >
-                            <FiEdit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(r)}
-                            title="Delete Receipt"
-                            className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 cursor-pointer"
-                          >
-                            <FiTrash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
-                      No cash receipts records found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={(p) => fetchRecords(p)} />
-      </div>
-
-      {/* ADD RECEIPT MODAL */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} showCloseButton={true}>
-        <div className="p-2 space-y-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Add Cash Receipt Record</h3>
-            <p className="text-xs text-slate-500">Record a new incoming payment official receipt.</p>
-          </div>
-
-          <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+      {/* Redesigned 3-Section Container (Flex/Grid) */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        
+        {/* ==========================================
+            LEFT PANEL: New / Edit Cash Receipt Card (30%)
+            ========================================== */}
+        <div className="w-full lg:w-[30%] shrink-0">
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Receipt Date</label>
+                <h2 className="text-base font-bold text-slate-800">
+                  {isEditing ? "Edit Cash Receipt" : "New Cash Receipt"}
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {isEditing ? `Modifying OR: ${orNumber}` : "Record official receipt inflows"}
+                </p>
+              </div>
+              {isEditing && (
+                <button
+                  onClick={handleClear}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-50 cursor-pointer"
+                  title="Cancel Edit"
+                >
+                  <FiX className="w-4.5 h-4.5" />
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Receipt Date */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Receipt Date</label>
                 <input
                   type="date"
                   required
                   value={receiptDate}
                   onChange={(e) => setReceiptDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-800"
                 />
+                {formErrors.receipt_date && <p className="text-red-500 text-xs mt-1">{formErrors.receipt_date[0]}</p>}
               </div>
 
+              {/* OR Number */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">OR Number (Optional)</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Official Receipt Number</label>
                 <input
                   type="text"
-                  placeholder="Auto-generated (OR-...)"
+                  placeholder="Auto-generated (OR-YYYY-XXXX)"
                   value={orNumber}
                   onChange={(e) => setOrNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-800 font-mono"
                 />
                 {formErrors.or_number && <p className="text-red-500 text-xs mt-1">{formErrors.or_number[0]}</p>}
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Received From</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Payer / Member / Client"
-                  value={receivedFrom}
-                  onChange={(e) => setReceivedFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+              {/* Member / Customer Dropdown */}
+              <div className="member-dropdown-container relative">
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Member / Customer</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search member or enter client..."
+                    required
+                    value={receivedFrom}
+                    onChange={(e) => {
+                      setReceivedFrom(e.target.value);
+                      setIsMemberDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsMemberDropdownOpen(true)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-800"
+                  />
+                  {isMemberDropdownOpen && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0">
+                        <input
+                          type="text"
+                          placeholder="Search members..."
+                          value={memberSearch}
+                          onChange={(e) => setMemberSearch(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-primary focus:outline-none bg-white"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {filteredMembers.length > 0 ? (
+                        filteredMembers.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              setReceivedFrom(`${m.firstname} ${m.lastname}`);
+                              setIsMemberDropdownOpen(false);
+                              setMemberSearch("");
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs text-slate-700 flex justify-between items-center border-b border-slate-50 last:border-b-0"
+                          >
+                            <span>{m.firstname} {m.lastname}</span>
+                            <span className="text-[10px] bg-slate-150 text-slate-500 px-1.5 py-0.5 rounded font-mono font-medium">{m.member_code}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-3 py-3 text-xs text-slate-400 text-center">
+                          No members found. Direct typing allowed.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {formErrors.received_from && <p className="text-red-500 text-xs mt-1">{formErrors.received_from[0]}</p>}
               </div>
 
+              {/* Particulars */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Source of Income</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Particulars</label>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Particulars of payment receipt..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-800"
+                ></textarea>
+                {formErrors.description && <p className="text-red-500 text-xs mt-1">{formErrors.description[0]}</p>}
+              </div>
+
+              {/* Amount Received */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Amount Received</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    placeholder="0.00"
+                    value={amountReceived}
+                    onChange={(e) => setAmountReceived(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-800 font-semibold"
+                  />
+                </div>
+                {formErrors.amount_received && <p className="text-red-500 text-xs mt-1">{formErrors.amount_received[0]}</p>}
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Payment Method</label>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {["Cash", "GCash", "Bank Transfer"].map((method) => (
+                    <label key={method} className="flex items-center gap-1.5 text-xs font-medium text-slate-700 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payment_method"
+                        value={method}
+                        checked={paymentMethod === method}
+                        onChange={() => setPaymentMethod(method as any)}
+                        className="text-primary focus:ring-primary border-slate-300 w-3.5 h-3.5"
+                      />
+                      <span>{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Income Classification */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Income Classification</label>
                 <select
                   value={sourceOfIncome}
                   onChange={(e) => setSourceOfIncome(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary text-slate-800 font-semibold cursor-pointer"
                 >
-                  {sourcesList.map(s => (
-                    <option key={s} value={s}>{s}</option>
+                  {["Share Capital", "Savings Deposit", "Loan Payment", "Interest Income", "Miscellaneous Income"].map((c) => (
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
+                {formErrors.source_of_income && <p className="text-red-500 text-xs mt-1">{formErrors.source_of_income[0]}</p>}
               </div>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Amount Received (₱)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                placeholder="0.00"
-                value={amountReceived}
-                onChange={(e) => setAmountReceived(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+              {/* Remarks */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Remarks</label>
+                <textarea
+                  rows={2}
+                  placeholder="Optional reference notes..."
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-800"
+                ></textarea>
+              </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description / Particulars</label>
-              <textarea
-                required
-                rows={2}
-                placeholder="Particulars of cash receipt..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              ></textarea>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Remarks</label>
-              <input
-                type="text"
-                placeholder="Bank slip #, reference notes"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-
-            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
-                className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitLoading}
-                className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md cursor-pointer disabled:opacity-50"
-              >
-                {submitLoading ? "Saving..." : "Add Receipt"}
-              </button>
-            </div>
-          </form>
+              {/* Form Buttons */}
+              <div className="flex gap-2.5 justify-end pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Clear
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitLoading}
+                  className="px-5 py-2 bg-primary hover:bg-primary-dark text-white rounded-xl text-xs font-bold shadow-md transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {submitLoading ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>{isEditing ? "Update" : "Save"}</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </Modal>
 
-      {/* EDIT RECEIPT MODAL */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} showCloseButton={true}>
-        <div className="p-2 space-y-4">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Edit Cash Receipt</h3>
-            <p className="text-xs text-slate-500">OR Number: <span className="font-semibold text-primary">{selectedRecord?.or_number}</span></p>
+        {/* ==========================================
+            RIGHT PANEL: Cash Receipts Journal (70%)
+            ========================================== */}
+        <div className="w-full lg:w-[70%] flex-1 space-y-6">
+          
+          {/* Header Panel & Breadcrumbs */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div>
+              <nav className="text-slate-400 text-[10px] uppercase tracking-wider flex items-center gap-1 mb-1 font-bold">
+                <span className="hover:text-slate-600 cursor-pointer">Dashboard</span>
+                <span>/</span>
+                <span className="hover:text-slate-600 cursor-pointer">Books of Accounts</span>
+                <span>/</span>
+                <span className="text-slate-500 font-black">Cash Receipts Journal</span>
+              </nav>
+              <h1 className="text-lg font-extrabold text-slate-850">Cash Receipts Journal</h1>
+            </div>
+            
+            <div className="text-xs bg-slate-50 border border-slate-150 px-3 py-1 rounded-xl font-medium text-slate-500 flex items-center gap-1">
+              <FiInfo className="w-3.5 h-3.5 text-slate-450" />
+              <span>Double-entry balancing enabled</span>
+            </div>
           </div>
 
-          <form onSubmit={handleEdit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Receipt Date</label>
-                <input
-                  type="date"
-                  required
-                  value={receiptDate}
-                  onChange={(e) => setReceiptDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+          {/* Top Toolbar */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5">
+              
+              {/* Search bar */}
+              <div className="w-full md:w-72">
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+                    <FiSearch className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search OR #, received from..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-700 font-medium"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">OR Number</label>
-                <input
-                  type="text"
-                  required
-                  value={orNumber}
-                  onChange={(e) => setOrNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
+              {/* Date Filters & Clear & Filter Button */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                  <FiCalendar className="w-4 h-4 text-slate-400" />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none"
+                  />
+                  <span>to</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none"
+                  />
+                  {(startDate || endDate) && (
+                    <button
+                      type="button"
+                      onClick={() => { setStartDate(""); setEndDate(""); }}
+                      className="text-primary hover:underline font-bold text-[10px] cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Received From</label>
-                <input
-                  type="text"
-                  required
-                  value={receivedFrom}
-                  onChange={(e) => setReceivedFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Source of Income</label>
-                <select
-                  value={sourceOfIncome}
-                  onChange={(e) => setSourceOfIncome(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                <button
+                  type="button"
+                  onClick={() => fetchRecords(1)}
+                  className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                 >
-                  {sourcesList.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                  <FiFilter className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Filter</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <FiPlus className="w-3.5 h-3.5" />
+                  <span>New Receipt</span>
+                </button>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Amount Received (₱)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                required
-                value={amountReceived}
-                onChange={(e) => setAmountReceived(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+            {/* Redesigned Journal Table Section */}
+            <div className="border-t border-slate-100">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-slate-400 text-sm font-semibold">Loading Cash Receipts records...</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto w-full">
+                  <table className="min-w-full divide-y divide-slate-100 text-xs table-fixed">
+                    <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[9px] sticky top-0 z-10 shadow-xs border-b border-slate-100">
+                      <tr>
+                        <th onClick={() => handleSort("receipt_date")} className="px-3 py-3.5 text-left cursor-pointer hover:text-slate-700 w-24">
+                          Date {sortBy === "receipt_date" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                        </th>
+                        <th onClick={() => handleSort("or_number")} className="px-3 py-3.5 text-left cursor-pointer hover:text-slate-700 w-28">
+                          OR Number {sortBy === "or_number" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                        </th>
+                        <th onClick={() => handleSort("received_from")} className="px-3 py-3.5 text-left cursor-pointer hover:text-slate-700 w-44">
+                          Received From {sortBy === "received_from" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                        </th>
+                        <th className="px-3 py-3.5 text-left w-48">Particulars</th>
+                        
+                        {/* Debit Columns */}
+                        <th className="px-3 py-3.5 text-right w-28 bg-emerald-500/5 text-emerald-800 font-extrabold border-l border-slate-100">Cash on Hand</th>
+                        <th className="px-3 py-3.5 text-right w-28 bg-emerald-500/5 text-emerald-800 font-extrabold">Cash in Bank</th>
+                        
+                        {/* Credit Columns */}
+                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold border-l border-slate-100">Savings Deposit</th>
+                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Share Capital</th>
+                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Loan Payment</th>
+                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Interest Income</th>
+                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Misc. Income</th>
+                        
+                        <th onClick={() => handleSort("amount_received")} className="px-3 py-3.5 text-right cursor-pointer hover:text-slate-700 w-28 font-black text-slate-800 border-l border-slate-100">
+                          Total Amount {sortBy === "amount_received" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                        </th>
+                        <th className="px-3 py-3.5 text-center w-28 sticky right-0 bg-slate-50 border-l border-slate-200 z-20">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
+                      {records.length > 0 ? (
+                        records.map((r, index) => {
+                          const amt = parseFloat(r.amount_received.toString()) || 0;
+
+                          // Parse payment method
+                          let method = "Cash";
+                          if (r.remarks && r.remarks.startsWith("[Method: ")) {
+                            const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]/);
+                            if (match) method = match[1];
+                          }
+
+                          // Debit Mapping
+                          const isCash = method === "Cash";
+                          const cashOnHand = isCash ? amt : 0;
+                          const cashInBank = !isCash ? amt : 0;
+
+                          // Credit Mapping
+                          const cls = r.source_of_income;
+                          const isSavings = cls === "Savings Deposit";
+                          const isCapital = cls === "Share Capital";
+                          const isLoan = cls === "Loan Payment";
+                          const isInterest = cls === "Interest Income";
+                          const isMisc = !isSavings && !isCapital && !isLoan && !isInterest;
+
+                          const savingsVal = isSavings ? amt : 0;
+                          const capitalVal = isCapital ? amt : 0;
+                          const loanVal = isLoan ? amt : 0;
+                          const interestVal = isInterest ? amt : 0;
+                          const miscVal = isMisc ? amt : 0;
+
+                          const formatCurrency = (val: number) => {
+                            if (val === 0) return <span className="text-slate-300">—</span>;
+                            return <span className="font-semibold">₱{val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
+                          };
+
+                          return (
+                            <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-slate-50/20"}`}>
+                              <td className="px-3 py-3.5 whitespace-nowrap font-medium text-slate-500">
+                                {r.receipt_date ? (typeof r.receipt_date === 'string' ? r.receipt_date.split('T')[0] : r.receipt_date) : ""}
+                              </td>
+                              <td className="px-3 py-3.5 font-bold text-primary truncate" title={r.or_number}>
+                                {r.or_number}
+                              </td>
+                              <td className="px-3 py-3.5 font-semibold text-slate-800 truncate" title={r.received_from}>
+                                {r.received_from}
+                              </td>
+                              <td className="px-3 py-3.5 truncate text-slate-500 max-w-[200px]" title={r.description}>
+                                {r.description}
+                              </td>
+                              
+                              {/* Debit */}
+                              <td className="px-3 py-3.5 text-right bg-emerald-500/5 text-emerald-700 border-l border-slate-100">{formatCurrency(cashOnHand)}</td>
+                              <td className="px-3 py-3.5 text-right bg-emerald-500/5 text-emerald-700">{formatCurrency(cashInBank)}</td>
+                              
+                              {/* Credit */}
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700 border-l border-slate-100">{formatCurrency(savingsVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(capitalVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(loanVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(interestVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(miscVal)}</td>
+                              
+                              {/* Total */}
+                              <td className="px-3 py-3.5 text-right font-extrabold text-slate-900 bg-slate-50/20 border-l border-slate-150">
+                                ₱{amt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              
+                              {/* Actions */}
+                              <td className="px-3 py-3.5 text-center sticky right-0 bg-white border-l border-slate-200 z-10 shadow-[-4px_0_10px_-4px_rgba(0,0,0,0.05)]">
+                                <div className="flex justify-center items-center gap-0.5">
+                                  <button
+                                    onClick={() => openViewModal(r)}
+                                    title="View Details"
+                                    className="p-1 rounded-lg text-slate-500 hover:bg-slate-100 transition cursor-pointer"
+                                  >
+                                    <FiEye className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handlePrintReceipt(r)}
+                                    title="Print Receipt"
+                                    className="p-1 rounded-lg text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+                                  >
+                                    <FiPrinter className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => openEditRecord(r)}
+                                    title="Edit Record"
+                                    className="p-1 rounded-lg text-primary hover:bg-green-50 transition cursor-pointer"
+                                  >
+                                    <FiEdit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(r)}
+                                    title="Delete Record"
+                                    className="p-1 rounded-lg text-red-650 hover:bg-red-55 transition cursor-pointer"
+                                  >
+                                    <FiTrash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={13} className="px-6 py-12 text-center text-slate-400 font-medium">
+                            No cash receipt journal logs found matching filter guidelines.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Description / Particulars</label>
-              <textarea
-                required
-                rows={2}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              ></textarea>
+            {/* Pagination footer */}
+            <div className="border-t border-slate-100 px-5 py-3.5 bg-slate-50 flex items-center justify-between">
+              <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={(p) => fetchRecords(p)} />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Remarks</label>
-              <input
-                type="text"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+          {/* ==========================================
+              SUMMARY CARD STATS: Grid displays totals
+              ========================================== */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-xs space-y-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <FiInfo className="text-primary w-4 h-4" />
+              <span>Live Ledger Classification Aggregations</span>
+            </h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {/* Total Cash on Hand */}
+              <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-100/50">
+                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Total Cash on Hand</span>
+                <span className="text-sm font-extrabold text-emerald-700 mt-1 block">
+                  ₱ {totals.cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Cash in Bank */}
+              <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-100/50">
+                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Total Cash in Bank</span>
+                <span className="text-sm font-extrabold text-emerald-700 mt-1 block">
+                  ₱ {totals.cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Savings Deposit */}
+              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Savings Deposits</span>
+                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {totals.savingsDeposit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Share Capital */}
+              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Share Capital</span>
+                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {totals.shareCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Loan Payment */}
+              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Loan Payments</span>
+                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {totals.loanPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Interest Income */}
+              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Interest Income</span>
+                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {totals.interestIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Miscellaneous Income */}
+              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Misc. Incomes</span>
+                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {totals.miscIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Grand Total Receipts */}
+              <div className="bg-primary p-4 rounded-xl border border-primary text-white shadow-xs">
+                <span className="text-[9px] font-bold text-slate-100 uppercase tracking-wider block">Grand Total Receipts</span>
+                <span className="text-sm font-black text-white mt-1 block">
+                  ₱ {totals.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
+          </div>
 
-            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
+          {/* ==========================================
+              FOOTER ACTIONS: Print & Exports
+              ========================================== */}
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-xs">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              Export options for this journal page
+            </span>
+
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 cursor-pointer"
+                onClick={handlePrint}
+                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
               >
-                Cancel
+                <FiPrinter className="w-4 h-4 text-slate-500" />
+                <span>Print Journal</span>
               </button>
+
               <button
-                type="submit"
-                disabled={submitLoading}
-                className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md cursor-pointer disabled:opacity-50"
+                type="button"
+                onClick={handleExportExcel}
+                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
               >
-                {submitLoading ? "Updating..." : "Update Receipt"}
+                <FiDownload className="w-4 h-4 text-emerald-600" />
+                <span>Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <FiDownload className="w-4 h-4 text-teal-650" />
+                <span>CSV</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <FiFileText className="w-4 h-4 text-red-500" />
+                <span>PDF</span>
               </button>
             </div>
-          </form>
+          </div>
         </div>
-      </Modal>
+      </div>
 
-      {/* VIEW RECEIPT MODAL */}
+      {/* ==========================================
+          VIEW RECEIPT MODAL
+          ========================================== */}
       <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} showCloseButton={true}>
         {selectedRecord && (
           <div className="p-2 space-y-4">
             <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
-                <span className="text-xs uppercase font-bold text-primary tracking-wider">Official Receipt</span>
-                <h3 className="text-xl font-bold text-slate-800 mt-0.5">{selectedRecord.or_number}</h3>
-                <p className="text-xs text-slate-400">Date: {selectedRecord.receipt_date}</p>
+                <span className="text-[10px] uppercase font-bold text-primary tracking-widest block">Official Receipt Summary</span>
+                <h3 className="text-lg font-bold text-slate-800 mt-1">{selectedRecord.or_number}</h3>
+                <p className="text-xs text-slate-400">Transaction Date: {selectedRecord.receipt_date ? (typeof selectedRecord.receipt_date === 'string' ? selectedRecord.receipt_date.split('T')[0] : selectedRecord.receipt_date) : ""}</p>
               </div>
               <button
                 onClick={() => handlePrintReceipt(selectedRecord)}
-                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg text-xs flex items-center gap-1 cursor-pointer"
+                className="px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
               >
-                <FiPrinter className="w-3.5 h-3.5" />
+                <FiPrinter className="w-4 h-4" />
                 <span>Print OR</span>
               </button>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-semibold text-slate-400 uppercase">Amount Received</span>
-                <span className="text-xl font-extrabold text-emerald-600">₱ {parseFloat(selectedRecord.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            {/* Financial summary blocks */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-3.5 text-xs font-medium text-slate-700">
+              <div className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-100">
+                <span className="text-xs font-bold text-slate-400 uppercase">Amount Received</span>
+                <span className="text-lg font-black text-emerald-600">
+                  ₱ {parseFloat(selectedRecord.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
+              
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
-                  <span className="text-xs font-semibold text-slate-400 uppercase block">Received From</span>
-                  <span className="font-bold text-slate-800">{selectedRecord.received_from}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Received From</span>
+                  <span className="font-bold text-slate-800 text-sm block">{selectedRecord.received_from}</span>
                 </div>
                 <div>
-                  <span className="text-xs font-semibold text-slate-400 uppercase block">Source of Income</span>
-                  <span className="font-semibold text-slate-700">{selectedRecord.source_of_income}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Classification</span>
+                  <span className="font-semibold text-slate-750 text-sm block">{selectedRecord.source_of_income}</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-2 text-sm text-slate-700">
+            {/* Audit & Additional details */}
+            <div className="space-y-3.5 text-xs text-slate-700 p-2">
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase">Particulars / Description</p>
-                <p className="mt-0.5 font-medium">{selectedRecord.description}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Particulars / Description</p>
+                <p className="mt-1 font-medium bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">{selectedRecord.description}</p>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase">Recorded By</p>
-                <p className="mt-0.5 font-medium">{selectedRecord.recorded_by}</p>
-              </div>
-              {selectedRecord.remarks && (
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase">Remarks</p>
-                  <p className="mt-0.5 text-slate-600">{selectedRecord.remarks}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Recorded By</p>
+                  <p className="mt-1 font-semibold text-slate-800">{selectedRecord.recorded_by}</p>
                 </div>
-              )}
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase">Payment Method</p>
+                  <p className="mt-1 font-semibold text-slate-800">
+                    {(() => {
+                      let method = "Cash";
+                      if (selectedRecord.remarks && selectedRecord.remarks.startsWith("[Method: ")) {
+                        const match = selectedRecord.remarks.match(/^\[Method:\s*([^\]]+)\]/);
+                        if (match) method = match[1];
+                      }
+                      return method;
+                    })()}
+                  </p>
+                </div>
+              </div>
+
+              {(() => {
+                let restRemarks = selectedRecord.remarks || "";
+                if (selectedRecord.remarks && selectedRecord.remarks.startsWith("[Method: ")) {
+                  const match = selectedRecord.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
+                  if (match) restRemarks = match[2];
+                }
+                if (!restRemarks) return null;
+                return (
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Remarks</p>
+                    <p className="mt-1 text-slate-500 font-medium">{restRemarks}</p>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex justify-end pt-4 border-t border-slate-100">
               <button
                 onClick={() => setIsViewModalOpen(false)}
-                className="px-5 py-2 text-sm font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl cursor-pointer"
+                className="px-5 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition cursor-pointer"
               >
-                Close
+                Close Details
               </button>
             </div>
           </div>

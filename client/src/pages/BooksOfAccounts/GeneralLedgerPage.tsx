@@ -92,12 +92,15 @@ const GeneralLedgerPage = () => {
 
     try {
       setSyncing(true);
-      await BooksOfAccountsService.syncGeneralLedger();
-      Swal.fire("Synchronized", "General Ledger has been updated from all Books of Accounts.", "success");
+      console.log("[GeneralLedger] Initiating synchronization request...");
+      const res = await BooksOfAccountsService.syncGeneralLedger();
+      console.log("[GeneralLedger] Sync response:", res.data);
+      Swal.fire("Synchronized", res.data?.message || "General Ledger has been updated from all Books of Accounts.", "success");
       fetchRecords(1);
-    } catch (err) {
-      console.error("Sync failed: ", err);
-      Swal.fire("Error", "Failed to synchronize General Ledger.", "error");
+    } catch (err: any) {
+      console.error("[GeneralLedger] Sync failed: ", err);
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to synchronize General Ledger.";
+      Swal.fire("Error", errorMessage, "error");
     } finally {
       setSyncing(false);
     }
@@ -309,13 +312,7 @@ const GeneralLedgerPage = () => {
             <span>Export Excel</span>
           </button>
 
-          <button
-            onClick={openAddModal}
-            className="bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer text-xs"
-          >
-            <FiPlus className="w-4 h-4" />
-            <span>Add Manual Entry</span>
-          </button>
+
         </div>
       </div>
 

@@ -1,25 +1,112 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
+:root {
+  --font-sans: 'Poppins', sans-serif;
+  --theme-primary: #1F6B3D;
+  --theme-primary-dark: #164e2c;
+  --theme-secondary: #2F855A;
+  --theme-secondary-dark: #225f40;
+  --theme-accent: #86EFAC;
+  --theme-sidebar-bg: #0B2917;
+  --theme-sidebar-hover: #144929;
+  --theme-bg-main: #F8FAFC;
+  --theme-navbar-bg: #FFFFFF;
+  --theme-card-bg: #FFFFFF;
+  --theme-card-text: #1E293B;
+  --theme-table-header: #F1F5F9;
+  --theme-link: #1F6B3D;
+}
 
 @theme {
   --font-sans: 'Poppins', sans-serif;
-  --color-primary: #1F6B3D;
-  --color-primary-dark: #164e2c;
-  --color-secondary: #2F855A;
-  --color-secondary-dark: #225f40;
-  --color-accent: #86EFAC; /* light green accent */
-  --color-dark-green: #0B2917; /* Sidebar background color */
-  --color-sidebar-hover: #144929;
-  --color-bg-main: #F8FAFC;
+  --color-primary: var(--theme-primary);
+  --color-primary-dark: var(--theme-primary-dark);
+  --color-secondary: var(--theme-secondary);
+  --color-secondary-dark: var(--theme-secondary-dark);
+  --color-accent: var(--theme-accent);
+  --color-dark-green: var(--theme-sidebar-bg);
+  --color-sidebar-hover: var(--theme-sidebar-hover);
+  --color-bg-main: var(--theme-bg-main);
+  --color-navbar-bg: var(--theme-navbar-bg);
+  --color-card-bg: var(--theme-card-bg);
+  --color-card-text: var(--theme-card-text);
+  --color-table-header: var(--theme-table-header);
+  --color-link: var(--theme-link);
 }
 
 body {
   font-family: var(--font-sans);
   background-color: var(--color-bg-main);
-  color: #1E293B;
+  color: var(--color-card-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global smooth transition (200-300ms) for theme switching */
+body, aside, nav, header, main, div, table, th, td, button, input, select, textarea {
+  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
+}
+
+/* Themed Table Header background override */
+thead {
+  background-color: var(--color-table-header);
+}
+
+/* Themed Light Mode subtle background tinting */
+:root:not(.dark) .bg-slate-50,
+:root:not(.dark) .bg-gray-50 {
+  background-color: var(--color-table-header);
+}
+
+/* Dark mode styles for Midnight Dark theme */
+.dark body {
+  background-color: var(--color-bg-main);
+  color: var(--color-card-text);
+}
+
+.dark .bg-white {
+  background-color: var(--color-card-bg) !important;
+  color: var(--color-card-text) !important;
+  border-color: #334155 !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-gray-50 {
+  background-color: var(--color-table-header) !important;
+  color: var(--color-card-text) !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-gray-600 {
+  color: #F1F5F9 !important;
+}
+
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark .text-gray-500,
+.dark .text-gray-400 {
+  color: #94A3B8 !important;
+}
+
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: #334155 !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0F172A !important;
+  color: #F8FAFC !important;
+  border-color: #334155 !important;
 }
 
 /* Scrollbar styles */

@@ -1,13 +1,15 @@
 import { useState, useEffect, type FormEvent } from "react";
 import SettingService from "../../services/SettingService";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import {
-  FiSave, FiUpload, FiDatabase, FiLock, FiSettings, FiDownload, FiAlertTriangle, FiInfo, FiEye, FiEyeOff,
+  FiSave, FiUpload, FiDatabase, FiLock, FiSettings, FiDownload, FiAlertTriangle, FiInfo, FiEye, FiEyeOff, FiCheck,
 } from "react-icons/fi";
 import Swal from "sweetalert2";
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { themeKey, setTheme, availableThemes, currentTheme } = useTheme();
   const isAdmin = user?.role === "Administrator";
 
   // Cooperative Info
@@ -15,7 +17,6 @@ const SettingsPage = () => {
   const [address, setAddress] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [email, setEmail] = useState("");
-  const [themeMode, setThemeMode] = useState("light");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(false);
@@ -45,7 +46,9 @@ const SettingsPage = () => {
       setAddress(s.address || "");
       setContactNumber(s.contact_number || "");
       setEmail(s.email || "");
-      setThemeMode(s.theme_mode || "light");
+      if (s.theme_mode) {
+        setTheme(s.theme_mode);
+      }
       setCurrentLogoUrl(s.cooperative_logo || null);
     } catch (err) {
       console.error("Failed to load settings:", err);
@@ -63,7 +66,7 @@ const SettingsPage = () => {
     formData.append("address", address);
     formData.append("contact_number", contactNumber);
     formData.append("email", email);
-    formData.append("theme_mode", themeMode);
+    formData.append("theme_mode", themeKey);
     if (logoFile) formData.append("cooperative_logo", logoFile);
     try {
       setSettingsSaving(true);
@@ -105,7 +108,7 @@ const SettingsPage = () => {
       text: "This will create a complete SQL backup of all CASCOFAMCO data.",
       icon: "question",
       showCancelButton: true,
-      confirmButtonColor: "#1F6B3D",
+      confirmButtonColor: currentTheme.primary,
       cancelButtonColor: "#64748B",
       confirmButtonText: "Yes, generate backup",
     });
@@ -115,9 +118,9 @@ const SettingsPage = () => {
       const res = await SettingService.backupDatabase();
       Swal.fire({
         title: "Backup Complete!",
-        html: `Database backup generated successfully.<br/><br/><a href="${res.data.download_url}" target="_blank" class="font-bold text-green-700 underline">Click here to download backup file</a>`,
+        html: `Database backup generated successfully.<br/><br/><a href="${res.data.download_url}" target="_blank" class="font-bold text-primary underline">Click here to download backup file</a>`,
         icon: "success",
-        confirmButtonColor: "#1F6B3D",
+        confirmButtonColor: currentTheme.primary,
       });
     } catch (err: any) {
       Swal.fire("Error", err.response?.data?.message || "Backup generation failed.", "error");
@@ -235,16 +238,50 @@ const SettingsPage = () => {
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Interface Theme</label>
-                <select
-                  value={themeMode}
-                  onChange={(e) => setThemeMode(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="light">Light Mode</option>
-                  <option value="dark">Dark Mode (Planned)</option>
-                </select>
+              <div className="md:col-span-2 mt-2">
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">
+                  Interface Theme
+                </label>
+                <p className="text-xs text-slate-500 mb-3">
+                  Select a theme color scheme below. Clicking any theme instantly updates the application interface in real time.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                  {availableThemes.map((t) => {
+                    const isSelected = themeKey === t.key;
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setTheme(t.key)}
+                        className={`relative text-left p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                          isSelected
+                            ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
+                            : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <span className="text-xs font-semibold text-slate-800 truncate flex items-center gap-1">
+                            <span>{t.emoji}</span>
+                            <span className="truncate">{t.name}</span>
+                          </span>
+                          {isSelected && (
+                            <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center shrink-0">
+                              <FiCheck className="w-2.5 h-2.5" />
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Color swatches */}
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: t.primary }} title="Primary" />
+                          <span className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: t.secondary }} title="Secondary" />
+                          <span className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: t.accent }} title="Accent" />
+                          <span className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs" style={{ backgroundColor: t.sidebarBg }} title="Sidebar" />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div>

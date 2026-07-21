@@ -11,8 +11,8 @@ AxiosInstance.interceptors.request.use((config) => {
   }
 
   if (config.data instanceof FormData) {
-    config.headers["Content-Type"] = "multipart/form-data";
-  } else {
+    delete config.headers["Content-Type"];
+  } else if (!config.headers["Content-Type"]) {
     config.headers["Content-Type"] = "application/json";
   }
 

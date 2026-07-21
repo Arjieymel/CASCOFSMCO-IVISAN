@@ -5,8 +5,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { useState, type FormEvent } from "react";
 import { FiMenu, FiLogOut, FiSettings } from "react-icons/fi";
 import Swal from "sweetalert2";
+import { useTheme } from "../contexts/ThemeContext";
 
 const AppHeader = () => {
+  const { currentTheme } = useTheme();
   const { isOpen, toggleUserMenu } = useHeader();
   const { toggleSidebar } = useSidebar();
   const { user, logout } = useAuth();
@@ -21,7 +23,7 @@ const AppHeader = () => {
       text: "Are you sure you want to log out of CASCOFAMCO?",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#1F6B3D",
+      confirmButtonColor: currentTheme.primary,
       cancelButtonColor: "#64748B",
       confirmButtonText: "Yes, Log out",
       cancelButtonText: "Cancel"
@@ -43,7 +45,7 @@ const AppHeader = () => {
 
   return (
     <>
-      <nav className="fixed top-0 z-30 w-full bg-white border-b border-slate-100 shadow-xs h-16 flex items-center justify-between px-4 sm:px-6">
+      <nav className="fixed top-0 z-30 w-full bg-navbar-bg border-b border-slate-100 shadow-xs h-16 flex items-center justify-between px-4 sm:px-6">
         {isOpen && (
           <div className="fixed inset-0 z-10 bg-transparent" onClick={toggleUserMenu} />
         )}
