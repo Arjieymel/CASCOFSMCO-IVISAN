@@ -8,7 +8,7 @@ class StoreCashSalesBookRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() && $this->user()->role === 'Administrator';
+        return $this->user() && in_array($this->user()->role, ['Administrator', 'Staff']);
     }
 
     public function rules(): array

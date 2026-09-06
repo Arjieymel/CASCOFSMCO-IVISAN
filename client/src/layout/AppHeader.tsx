@@ -6,12 +6,14 @@ import { useState, type FormEvent } from "react";
 import { FiMenu, FiLogOut, FiSettings } from "react-icons/fi";
 import Swal from "sweetalert2";
 import { useTheme } from "../contexts/ThemeContext";
+import { useSettings } from "../contexts/SettingContext";
 
 const AppHeader = () => {
   const { currentTheme } = useTheme();
   const { isOpen, toggleUserMenu } = useHeader();
   const { toggleSidebar } = useSidebar();
   const { user, logout } = useAuth();
+  const { cooperativeName, cooperativeLogo } = useSettings();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -60,12 +62,32 @@ const AppHeader = () => {
             <FiMenu className="w-6 h-6" />
           </button>
 
-          <div className="sm:hidden font-bold text-primary tracking-wide text-sm">
-            CASCOFAMCO
+          <div className="sm:hidden flex items-center gap-2">
+            {cooperativeLogo ? (
+              <img
+                src={cooperativeLogo}
+                alt="Logo"
+                className="w-7 h-7 object-contain rounded-md"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-md bg-primary text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                {cooperativeName ? cooperativeName.charAt(0) : "C"}
+              </div>
+            )}
           </div>
 
-          <div className="hidden sm:block text-slate-500 font-medium text-sm tracking-wide">
-
+          <div className="hidden sm:flex items-center gap-2">
+            {cooperativeLogo ? (
+              <img
+                src={cooperativeLogo}
+                alt="Logo"
+                className="w-8 h-8 object-contain rounded-md"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-md bg-primary text-white font-bold flex items-center justify-center text-xs shadow-xs">
+                {cooperativeName ? cooperativeName.charAt(0) : "C"}
+              </div>
+            )}
           </div>
         </div>
 

@@ -9,9 +9,9 @@ class EnsureAdmin
 {
     public function handle(Request $request, Closure $next)
     {
-        if (!$request->user() || $request->user()->role !== 'Administrator') {
+        if (!$request->user() || !in_array($request->user()->role, ['Administrator', 'Staff'])) {
             return response()->json([
-                'message' => 'Access denied. Books of Accounts is accessible by Administrator only.'
+                'message' => 'Access denied. Books of Accounts is accessible by Administrator and Staff only.'
             ], 403);
         }
 

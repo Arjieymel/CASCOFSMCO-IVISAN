@@ -15,7 +15,7 @@ const SettingContext = createContext<SettingContextType | undefined>(undefined);
 
 export const SettingProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [cooperativeName, setCooperativeName] = useState<string>(() => {
-    return localStorage.getItem("cascofamco_name") || "Capiz Small Coconut Farmers Marketing Cooperative";
+    return localStorage.getItem("cascofamco_name") || "Ivisan Small Coconut Farmers Marketing Cooperative";
   });
   const [cooperativeLogo, setCooperativeLogoState] = useState<string | null>(() => {
     return localStorage.getItem("cascofamco_logo") || null;

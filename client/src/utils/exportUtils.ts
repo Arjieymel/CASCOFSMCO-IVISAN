@@ -69,7 +69,7 @@ export const printReport = (title: string, headers: string[], rows: (string | nu
       <body>
         <div class="header">
           <h1>CASCOFAMCO</h1>
-          <p>Capiz Small Coconut Farmers Marketing Cooperative</p>
+          <p>Ivisan Small Coconut Farmers Marketing Cooperative</p>
           <h2>${title}</h2>
           <p>Generated on: ${new Date().toLocaleString()}</p>
         </div>

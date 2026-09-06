@@ -15,7 +15,7 @@ class CashReceiptsJournalPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -23,7 +23,7 @@ class CashReceiptsJournalPolicy
      */
     public function view(User $user, CashReceiptsJournal $cashReceiptsJournal): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -31,7 +31,7 @@ class CashReceiptsJournalPolicy
      */
     public function create(User $user): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -39,7 +39,7 @@ class CashReceiptsJournalPolicy
      */
     public function update(User $user, CashReceiptsJournal $cashReceiptsJournal): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -47,6 +47,6 @@ class CashReceiptsJournalPolicy
      */
     public function delete(User $user, CashReceiptsJournal $cashReceiptsJournal): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 }

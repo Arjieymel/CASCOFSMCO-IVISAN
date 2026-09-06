@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import SettingService from "../../services/SettingService";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useSettings } from "../../contexts/SettingContext";
 import {
   FiSave, FiUpload, FiDatabase, FiLock, FiSettings, FiDownload, FiAlertTriangle, FiInfo, FiEye, FiEyeOff, FiCheck,
 } from "react-icons/fi";
@@ -10,6 +11,7 @@ import Swal from "sweetalert2";
 const SettingsPage = () => {
   const { user } = useAuth();
   const { themeKey, setTheme, availableThemes, currentTheme } = useTheme();
+  const { refreshSettings } = useSettings();
   const isAdmin = user?.role === "Administrator";
 
   // Cooperative Info
@@ -73,6 +75,7 @@ const SettingsPage = () => {
       const res = await SettingService.updateSettings(formData);
       if (res.data.cooperative_logo) setCurrentLogoUrl(res.data.cooperative_logo);
       setLogoFile(null);
+      await refreshSettings();
       Swal.fire("Saved!", "Cooperative settings updated successfully.", "success");
     } catch (err: any) {
       Swal.fire("Error", err.response?.data?.message || "Failed to save settings.", "error");
@@ -154,25 +157,6 @@ const SettingsPage = () => {
     } finally { setRestoreLoading(false); }
   };
 
-  const SectionCard = ({
-    title, icon, children, badge,
-  }: {
-    title: string;
-    icon: React.ReactNode;
-    children: React.ReactNode;
-    badge?: React.ReactNode;
-  }) => (
-    <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs">
-      <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
-        <h2 className="text-base font-bold text-slate-800 flex items-center gap-2.5">
-          <span className="p-2 rounded-lg bg-green-50 text-primary">{icon}</span>
-          {title}
-        </h2>
-        {badge}
-      </div>
-      {children}
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -253,11 +237,10 @@ const SettingsPage = () => {
                         key={t.key}
                         type="button"
                         onClick={() => setTheme(t.key)}
-                        className={`relative text-left p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                          isSelected
+                        className={`relative text-left p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${isSelected
                             ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
                             : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between gap-1 mb-2">
                           <span className="text-xs font-semibold text-slate-800 truncate flex items-center gap-1">
@@ -459,7 +442,7 @@ const SettingsPage = () => {
         </SectionCard>
       ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-3">
-          <FiInfo className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <FiInfo className="w-5 h-5 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-700">
             <strong>Database Maintenance</strong> is restricted to Administrator accounts only.
           </p>
@@ -468,5 +451,25 @@ const SettingsPage = () => {
     </div>
   );
 };
+
+interface SectionCardProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  badge?: React.ReactNode;
+}
+
+const SectionCard = ({ title, icon, children, badge }: SectionCardProps) => (
+  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs">
+    <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
+      <h2 className="text-base font-bold text-slate-800 flex items-center gap-2.5">
+        <span className="p-2 rounded-lg bg-green-50 text-primary">{icon}</span>
+        {title}
+      </h2>
+      {badge}
+    </div>
+    {children}
+  </div>
+);
 
 export default SettingsPage;

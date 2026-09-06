@@ -15,7 +15,7 @@ class CashSalesBookPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -23,7 +23,7 @@ class CashSalesBookPolicy
      */
     public function view(User $user, CashSalesBook $cashSalesBook): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -31,7 +31,7 @@ class CashSalesBookPolicy
      */
     public function create(User $user): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -39,7 +39,7 @@ class CashSalesBookPolicy
      */
     public function update(User $user, CashSalesBook $cashSalesBook): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 
     /**
@@ -47,6 +47,6 @@ class CashSalesBookPolicy
      */
     public function delete(User $user, CashSalesBook $cashSalesBook): bool
     {
-        return $user->role === 'Administrator';
+        return in_array($user->role, ['Administrator', 'Staff']);
     }
 }

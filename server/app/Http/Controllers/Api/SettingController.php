@@ -20,7 +20,7 @@ class SettingController extends Controller
     public function index()
     {
         $settings = [
-            'cooperative_name' => Setting::getVal('cooperative_name', 'Capiz Small Coconut Farmers Marketing Cooperative'),
+            'cooperative_name' => Setting::getVal('cooperative_name', 'Ivisan Small Coconut Farmers Marketing Cooperative'),
             'cooperative_logo' => Setting::getVal('cooperative_logo') ? url('storage/' . Setting::getVal('cooperative_logo')) : null,
             'address' => Setting::getVal('address', 'Roxas City, Capiz, Philippines'),
             'contact_number' => Setting::getVal('contact_number', '+63 912 345 6789'),

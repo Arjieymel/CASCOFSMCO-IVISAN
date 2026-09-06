@@ -285,7 +285,7 @@ const ReportsPage = () => {
             </div>
             <div className="text-right hidden sm:block">
               <p className="text-3xl font-black text-primary/10 tracking-tight">CASCOFAMCO</p>
-              <p className="text-xs text-slate-400">Capiz Small Coconut Farmers</p>
+              <p className="text-xs text-slate-400">Ivisan Small Coconut Farmers</p>
             </div>
           </div>
 

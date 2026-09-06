@@ -1,11 +1,16 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useSettings } from "../../contexts/SettingContext";
 import { FiUser, FiLock, FiAlertCircle, FiPackage, FiEye, FiEyeOff } from "react-icons/fi";
 import Swal from "sweetalert2";
+import cascofamco from "../../assets/img/cascofamco.png";
+
+
 
 const LoginPage = () => {
   const { login, user } = useAuth();
+  const { cooperativeName, cooperativeLogo } = useSettings();
   const navigate = useNavigate();
 
   const [username, setUsername] = useState("");
@@ -90,22 +95,38 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex bg-slate-50">
       {/* Left side: Login Form */}
-      <div className="w-full lg:w-[45%] flex flex-col justify-center px-8 sm:px-16 lg:px-24 bg-white relative z-10 shadow-2xl">
-        <div className="max-w-md w-full mx-auto">
+      <div className="w-full lg:w-[45%] flex flex-col justify-center px-8 sm:px-16 lg:px-24 bg-white relative z-10 shadow-2xl overflow-hidden">
+
+        <img
+          src="/niyog.png"
+          alt=""
+          className="absolute -left-36 -bottom-18 w-[137.5] h-[137.5] object-contain pointer-events-none select-none -rotate-12 z-0"
+        />
+        <div className="max-w-md w-full mx-auto relative z-10">
           {/* Logo & Branding */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-primary text-white font-bold flex items-center justify-center text-2xl shadow-md">
-              C
-            </div>
+            {cooperativeLogo ? (
+              <img
+                src={cooperativeLogo}
+                alt="Cooperative Logo"
+                className="w-16 h-18 rounded-xl object-contain border border-slate-100 p-1 bg-slate-50 shadow-md animate-fade-in"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-primary text-white font-bold flex items-center justify-center text-2xl shadow-md">
+                {cooperativeName ? cooperativeName.charAt(0) : "C"}
+              </div>
+            )}
             <div>
-              <h1 className="text-xl font-bold tracking-wide text-primary leading-tight">CASCOFAMCO</h1>
-              <p className="text-[10px] uppercase tracking-widest text-secondary font-semibold">Capiz Coconut Cooperative</p>
+              <h1 className="text-xl font-bold tracking-wide text-primary leading-tight">
+                {cooperativeName || "CASCOFAMCO"}
+              </h1>
+              <p className="text-[10px] uppercase tracking-widest text-secondary font-semibold">Ivisan Coconut Cooperative</p>
             </div>
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Sign In</h2>
-            <p className="text-slate-500 text-sm mt-1">Enter your credentials to access the Cooperative MIS.</p>
+            <h2 className="text-3xl lg:text-4xl font-extrabold tracking-tight bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent inline-block pb-1">Sign In</h2>
+            <p className="text-slate-500 text-sm mt-2 leading-relaxed">Enter your credentials to access the Cooperative MIS.</p>
           </div>
 
           {errorMsg && (
@@ -176,7 +197,7 @@ const LoginPage = () => {
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-primary hover:text-secondary font-semibold hover:underline cursor-pointer"
+                className="text-slate-800 hover:text-slate-600 font-semibold hover:underline cursor-pointer"
               >
                 Forgot Password?
               </button>
@@ -198,7 +219,7 @@ const LoginPage = () => {
 
           {/* Footer Info */}
           <div className="mt-12 text-center text-xs text-slate-400">
-            &copy; {new Date().getFullYear()} Capiz Small Coconut Farmers Marketing Cooperative.<br />
+            &copy; {new Date().getFullYear()} {cooperativeName || "Ivisan Small Coconut Farmers Marketing Cooperative"}.<br />
             All Rights Reserved.
           </div>
         </div>
@@ -207,17 +228,17 @@ const LoginPage = () => {
       {/* Right side: Branded Graphic/Illustration Panel */}
       <div className="hidden lg:flex lg:w-[55%] relative items-center justify-center bg-dark-green overflow-hidden">
         {/* Abstract Coconut Farm Gradient Overlay */}
-        <div className="absolute inset-0 bg-linear-to-tr from-dark-green via-primary to-secondary/80 opacity-90 z-10" />
+
 
         {/* Subtle pattern or farm image placeholders */}
-        <div className="absolute inset-0 bg-cover bg-center opacity-30 filter saturate-50" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&q=80&w=1200')" }} />
+        <div className="absolute inset-0 bg-cover bg-center " style={{ backgroundImage: `url(${cascofamco})` }} />
 
         {/* Content */}
         <div className="relative z-20 text-center px-16 text-white max-w-xl">
           <div className="w-20 h-20 rounded-3xl bg-accent/20 border border-accent/40 flex items-center justify-center mx-auto mb-8 shadow-inner">
             <FiPackage className="w-10 h-10 text-accent" />
           </div>
-          <h2 className="text-3xl font-bold leading-tight mb-4 text-accent">CASCOFAMCO Cooperative MIS</h2>
+          <h2 className="text-3xl font-bold leading-tight mb-4 text-accent">{(cooperativeName || "CASCOFAMCO")} MIS</h2>
           <p className="text-slate-200 text-sm leading-relaxed mb-6">
             A state-of-the-art cooperative information system enabling efficient member registration, coconut production monitoring, wholesale copra sales analytics, and task tracking.
           </p>
@@ -229,7 +250,7 @@ const LoginPage = () => {
             <div className="border-l border-white/10" />
             <div>
               <span className="block text-white font-bold text-lg">99.8%</span>
-              Capiz Farmers Registered
+              Ivisan Farmers Registered
             </div>
             <div className="border-l border-white/10" />
             <div>

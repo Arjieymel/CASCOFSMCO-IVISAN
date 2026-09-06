@@ -81,8 +81,8 @@ class GeneralLedgerController extends Controller
      */
     public function syncLedger(Request $request)
     {
-        // Require Admin
-        if ($request->user()->role !== 'Administrator') {
+        // Require Admin or Staff
+        if ($request->user()->role !== 'Administrator' && $request->user()->role !== 'Staff') {
             return response()->json(['message' => 'Unauthorized access.'], 403);
         }
 

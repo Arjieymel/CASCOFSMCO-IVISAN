@@ -186,7 +186,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // 7. Create System Settings
-        Setting::setVal('cooperative_name', 'Capiz Small Coconut Farmers Marketing Cooperative');
+        Setting::setVal('cooperative_name', 'Ivisan Small Coconut Farmers Marketing Cooperative');
         Setting::setVal('cooperative_logo', null); // Use default asset in frontend
         Setting::setVal('address', 'Brgy. Tabuc, Pontevedra, Capiz, Philippines');
         Setting::setVal('contact_number', '+63 (036) 621-1234');
@@ -204,7 +204,7 @@ class DatabaseSeeder extends Seeder
         ActivityLog::create([
             'user_id' => $admin->id,
             'username' => $admin->username,
-            'action' => 'Settings configured to Capiz Small Coconut Farmers Marketing Cooperative.',
+            'action' => 'Settings configured to Ivisan Small Coconut Farmers Marketing Cooperative.',
             'ip_address' => '127.0.0.1'
         ]);
 

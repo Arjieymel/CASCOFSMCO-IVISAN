@@ -18,8 +18,9 @@ use App\Http\Controllers\Api\GeneralLedgerController;
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Support\Facades\Route;
 
-// Public route
+// Public routes
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/settings', [SettingController::class, 'index']);
 
 // Protected routes (Sanctum)
 Route::middleware('auth:sanctum')->group(function () {
@@ -73,7 +74,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports', [ReportController::class, 'index']);
 
     // Settings
-    Route::get('/settings', [SettingController::class, 'index']);
     Route::post('/settings', [SettingController::class, 'update']);
     Route::post('/settings/change-password', [SettingController::class, 'changePassword']);
     Route::post('/settings/backup', [SettingController::class, 'backupDatabase']);

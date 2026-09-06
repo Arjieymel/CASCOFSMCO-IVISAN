@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useSettings } from "../contexts/SettingContext";
 import {
   FiHome,
   FiUsers,
@@ -20,6 +21,7 @@ import {
 const AppSidebar = () => {
   const { isOpen, toggleSidebar } = useSidebar();
   const { user } = useAuth();
+  const { cooperativeName, cooperativeLogo } = useSettings();
   const location = useLocation();
 
   const isBooksRoute = location.pathname.startsWith('/books-of-accounts');
@@ -71,12 +73,24 @@ const AppSidebar = () => {
         {/* Brand Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-sidebar-hover/40 bg-dark-green">
           <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent text-dark-green font-bold flex items-center justify-center text-lg shadow-inner">
-              C
-            </div>
-            <div>
-              <span className="text-base font-bold tracking-wider block leading-tight">CASCOFAMCO</span>
-              <span className="text-[10px] text-accent font-medium uppercase tracking-widest block">Capiz Coconut</span>
+            {cooperativeLogo ? (
+              <img
+                src={cooperativeLogo}
+                alt="Logo"
+                className="w-9 h-9 rounded-lg object-contain border border-white/10 p-1 bg-white/5 shadow-inner"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-accent text-dark-green font-bold flex items-center justify-center text-lg shadow-inner">
+                {cooperativeName ? cooperativeName.charAt(0) : "C"}
+              </div>
+            )}
+            <div className="overflow-hidden">
+              <span className="text-base font-bold tracking-wider block leading-tight truncate max-w-30">
+                {cooperativeName || "CASCOFAMCO"}
+              </span>
+              <span className="text-[10px] text-accent font-medium uppercase tracking-widest block truncate max-w-30">
+                Ivisan Coconut
+              </span>
             </div>
           </Link>
           <button
@@ -97,8 +111,8 @@ const AppSidebar = () => {
                   <Link
                     to={item.path}
                     className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group ${active
-                        ? "bg-accent text-dark-green font-semibold shadow-md translate-x-1"
-                        : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
+                      ? "bg-accent text-dark-green font-semibold shadow-md translate-x-1"
+                      : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
                       }`}
                   >
                     <span className={`transition-transform duration-200 group-hover:scale-110 ${active ? 'text-dark-green' : 'text-gray-400 group-hover:text-white'}`}>
@@ -110,16 +124,15 @@ const AppSidebar = () => {
               );
             })}
 
-            {/* 📚 Books of Accounts (Administrator Only) */}
-            {isAdmin && (
+            {/* 📚 Books of Accounts (Administrator and Staff) */}
+            {user && (user.role === 'Administrator' || user.role === 'Staff') && (
               <li className="pt-1">
                 <button
                   onClick={() => setBooksOpen(!booksOpen)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${
-                    isBooksRoute
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${isBooksRoute
                       ? "bg-sidebar-hover text-accent font-semibold"
                       : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3.5">
                     <FiBookOpen className={`w-5 h-5 ${isBooksRoute ? 'text-accent' : 'text-gray-400 group-hover:text-white'}`} />
@@ -141,11 +154,10 @@ const AppSidebar = () => {
                         <li key={sIdx}>
                           <Link
                             to={sub.path}
-                            className={`block px-3 py-2 rounded-lg text-xs tracking-wide transition-all ${
-                              subActive
+                            className={`block px-3 py-2 rounded-lg text-xs tracking-wide transition-all ${subActive
                                 ? "bg-accent text-dark-green font-bold shadow-xs"
                                 : "text-gray-300 hover:text-white hover:bg-sidebar-hover/50"
-                            }`}
+                              }`}
                           >
                             {sub.text}
                           </Link>
