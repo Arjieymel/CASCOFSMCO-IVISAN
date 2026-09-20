@@ -25,7 +25,7 @@ class SettingController extends Controller
             'address' => Setting::getVal('address', 'Roxas City, Capiz, Philippines'),
             'contact_number' => Setting::getVal('contact_number', '+63 912 345 6789'),
             'email' => Setting::getVal('email', 'info@cascofamco.com'),
-            'theme_mode' => Setting::getVal('theme_mode', 'light')
+            'theme_mode' => Setting::getVal('theme_mode', 'cascofamco-green')
         ];
 
         return response()->json($settings);
@@ -37,19 +37,29 @@ class SettingController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'cooperative_name' => 'required|string|max:200',
-            'address' => 'required|string|max:255',
-            'contact_number' => 'required|string|max:50',
-            'email' => 'required|email|max:100',
-            'theme_mode' => 'required|string|max:50',
+            'cooperative_name' => 'sometimes|string|max:200',
+            'address' => 'sometimes|string|max:255',
+            'contact_number' => 'sometimes|string|max:50',
+            'email' => 'sometimes|email|max:100',
+            'theme_mode' => 'sometimes|string|max:50',
             'cooperative_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048' // 2MB logo limit
         ]);
 
-        Setting::setVal('cooperative_name', $request->cooperative_name);
-        Setting::setVal('address', $request->address);
-        Setting::setVal('contact_number', $request->contact_number);
-        Setting::setVal('email', $request->email);
-        Setting::setVal('theme_mode', $request->theme_mode);
+        if ($request->has('cooperative_name')) {
+            Setting::setVal('cooperative_name', $request->cooperative_name);
+        }
+        if ($request->has('address')) {
+            Setting::setVal('address', $request->address);
+        }
+        if ($request->has('contact_number')) {
+            Setting::setVal('contact_number', $request->contact_number);
+        }
+        if ($request->has('email')) {
+            Setting::setVal('email', $request->email);
+        }
+        if ($request->has('theme_mode')) {
+            Setting::setVal('theme_mode', $request->theme_mode);
+        }
 
         if ($request->hasFile('cooperative_logo')) {
             $oldLogo = Setting::getVal('cooperative_logo');

@@ -80,7 +80,15 @@ class DashboardController extends Controller
         $lowStockAlerts = [];
         $allProducts = array_unique(array_merge(array_keys($prodInventory), array_keys($salesInventory)));
         
-        foreach ($allProducts as $productName) {
+        // Products explicitly excluded from Low Stock Alert monitoring (Coir Fiber and Dessicated/Desiccated Coconut)
+        $excludedAlertProducts = ['coir fiber', 'dessicated coconut', 'desiccated coconut'];
+
+        // Exclude unmonitored products before calculating low stock alerts
+        $monitoredProducts = array_filter($allProducts, function ($productName) use ($excludedAlertProducts) {
+            return !in_array(strtolower(trim($productName)), $excludedAlertProducts, true);
+        });
+
+        foreach ($monitoredProducts as $productName) {
             $produced = $prodInventory[$productName] ?? 0;
             $sold = $salesInventory[$productName] ?? 0;
             $stock = $produced - $sold;
