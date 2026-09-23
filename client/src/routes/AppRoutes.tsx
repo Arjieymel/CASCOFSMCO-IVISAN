@@ -52,6 +52,7 @@ const AppRoutes = () => {
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/setting" element={<Navigate to="/settings" replace />} />
 
                 {/* 📚 Books of Accounts Routes (Administrator & Staff) */}
                 <Route path="/books-of-accounts/cash-register" element={<AdminOrStaffRoute><CashRegisterPage /></AdminOrStaffRoute>} />

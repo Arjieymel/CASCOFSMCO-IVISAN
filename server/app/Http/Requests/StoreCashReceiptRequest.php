@@ -20,6 +20,7 @@ class StoreCashReceiptRequest extends FormRequest
             'description' => 'required|string',
             'source_of_income' => 'required|string|max:150',
             'amount_received' => 'required|numeric|min:0.01',
+            'payment_method' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',
         ];
     }

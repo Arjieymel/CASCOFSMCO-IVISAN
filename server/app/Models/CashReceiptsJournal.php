@@ -27,6 +27,18 @@ class CashReceiptsJournal extends Model
         'amount_received' => 'decimal:2',
     ];
 
+    protected $appends = [
+        'payment_method',
+    ];
+
+    public function getPaymentMethodAttribute(): string
+    {
+        if ($this->remarks && preg_match('/^\[Method:\s*([^\]]+)\]/', $this->remarks, $matches)) {
+            return trim($matches[1]);
+        }
+        return 'Cash';
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');

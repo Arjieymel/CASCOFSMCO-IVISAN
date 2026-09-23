@@ -6,7 +6,6 @@ import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
 import { exportToExcel, exportToPDF, printReport } from "../../utils/exportUtils";
 import {
-  FiPlus,
   FiEdit,
   FiTrash2,
   FiEye,
@@ -35,6 +34,18 @@ const CashReceiptsPage = () => {
   const [sortBy, setSortBy] = useState("receipt_date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  // Summary Totals from Database
+  const [backendTotals, setBackendTotals] = useState<{
+    cashOnHand: number;
+    cashInBank: number;
+    savingsDeposit: number;
+    shareCapital: number;
+    loanPayment: number;
+    interestIncome: number;
+    miscIncome: number;
+    grandTotal: number;
+  } | null>(null);
+
   // Member searchable dropdown states
   const [memberSearch, setMemberSearch] = useState("");
   const [isMemberDropdownOpen, setIsMemberDropdownOpen] = useState(false);
@@ -59,18 +70,38 @@ const CashReceiptsPage = () => {
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const fetchRecords = async (page: number = 1) => {
+  const baseIncomeClassifications = [
+    "Share Capital",
+    "Savings Deposit",
+    "Loan Payment",
+    "Interest Income",
+    "Miscellaneous Income"
+  ];
+  const incomeClassificationOptions = baseIncomeClassifications.includes(sourceOfIncome)
+    ? baseIncomeClassifications
+    : [sourceOfIncome, ...baseIncomeClassifications];
+
+  const fetchRecords = async (
+    page: number = 1,
+    searchQuery: string = search,
+    start: string = startDate,
+    end: string = endDate
+  ) => {
     try {
       setLoading(true);
       const res = await BooksOfAccountsService.loadCashReceipts(
-        page, search, startDate, endDate, 10, sortBy, sortOrder
+        page, searchQuery, start, end, 10, sortBy, sortOrder
       );
       setRecords(res.data.data || []);
       setCurrentPage(res.data.current_page || 1);
       setLastPage(res.data.last_page || 1);
-    } catch (err) {
+      if (res.data.totals) {
+        setBackendTotals(res.data.totals);
+      }
+    } catch (err: any) {
       console.error("Failed to load receipts: ", err);
-      Swal.fire("Error", "Could not fetch Cash Receipts Journal records.", "error");
+      const msg = err.response?.data?.message || "Could not fetch Cash Receipts Journal records.";
+      Swal.fire("Error", msg, "error");
     } finally {
       setLoading(false);
     }
@@ -85,8 +116,12 @@ const CashReceiptsPage = () => {
     }
   };
 
+  // Debounced search and filter effect
   useEffect(() => {
-    fetchRecords(1);
+    const timer = setTimeout(() => {
+      fetchRecords(1, search, startDate, endDate);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [search, sortBy, sortOrder]);
 
   useEffect(() => {
@@ -129,17 +164,23 @@ const CashReceiptsPage = () => {
   const openEditRecord = (r: CashReceiptRecord) => {
     setIsEditing(true);
     setEditingId(r.id);
-    setReceiptDate(r.receipt_date ? (typeof r.receipt_date === 'string' ? r.receipt_date.split('T')[0] : r.receipt_date) : "");
-    setOrNumber(r.or_number);
-    setReceivedFrom(r.received_from);
-    setDescription(r.description);
-    setAmountReceived(r.amount_received.toString());
-    setSourceOfIncome(r.source_of_income);
+    const cleanDate = r.receipt_date
+      ? (typeof r.receipt_date === "string" ? r.receipt_date.split("T")[0].split(" ")[0] : r.receipt_date)
+      : "";
+    setReceiptDate(cleanDate);
+    setOrNumber(r.or_number || "");
+    setReceivedFrom(r.received_from || "");
+    setDescription(r.description || "");
+    setAmountReceived(r.amount_received?.toString() || "");
+    setSourceOfIncome(r.source_of_income || "Share Capital");
 
     // Parse payment method & remarks
     let method: "Cash" | "GCash" | "Bank Transfer" = "Cash";
     let restRemarks = r.remarks || "";
-    if (r.remarks && r.remarks.startsWith("[Method: ")) {
+    if (r.payment_method && (r.payment_method === "Cash" || r.payment_method === "GCash" || r.payment_method === "Bank Transfer")) {
+      method = r.payment_method;
+      restRemarks = (r.remarks || "").replace(/^\[Method:\s*[^\]]+\]\s*/, "");
+    } else if (r.remarks && r.remarks.startsWith("[Method: ")) {
       const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
       if (match) {
         method = match[1] as any;
@@ -162,18 +203,27 @@ const CashReceiptsPage = () => {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormErrors({});
+
+    const parsedAmount = parseFloat(amountReceived);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setFormErrors({ amount_received: ["Please enter a valid amount greater than 0.00."] });
+      return;
+    }
+
     setSubmitLoading(true);
 
-    // Pack payment method into remarks
-    const packedRemarks = `[Method: ${paymentMethod}] ${remarks.trim()}`.trim();
+    // Pack payment method into remarks cleanly
+    const cleanRemarks = remarks.trim().replace(/^\[Method:\s*[^\]]+\]\s*/, "");
+    const packedRemarks = `[Method: ${paymentMethod}] ${cleanRemarks}`.trim();
 
     const payload = {
-      or_number: orNumber || undefined,
+      or_number: orNumber.trim() || undefined,
       receipt_date: receiptDate,
-      received_from: receivedFrom,
-      description,
+      received_from: receivedFrom.trim(),
+      description: description.trim(),
       source_of_income: sourceOfIncome,
-      amount_received: parseFloat(amountReceived),
+      amount_received: parsedAmount,
+      payment_method: paymentMethod,
       remarks: packedRemarks
     };
 
@@ -198,10 +248,12 @@ const CashReceiptsPage = () => {
       handleClear();
       fetchRecords(currentPage);
     } catch (err: any) {
+      console.error("Save receipt error: ", err);
       if (err.response && err.response.status === 422) {
-        setFormErrors(err.response.data.errors);
+        setFormErrors(err.response.data.errors || {});
       } else {
-        Swal.fire("Error", "Failed to save record.", "error");
+        const message = err.response?.data?.message || "Failed to save record.";
+        Swal.fire("Error", message, "error");
       }
     } finally {
       setSubmitLoading(false);
@@ -230,15 +282,21 @@ const CashReceiptsPage = () => {
         icon: "success",
         confirmButtonColor: "#1F6B3D"
       });
-      fetchRecords(currentPage);
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Failed to delete receipt record.", "error");
+      const targetPage = records.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      fetchRecords(targetPage);
+    } catch (err: any) {
+      console.error("Delete receipt error: ", err);
+      const msg = err.response?.data?.message || "Failed to delete receipt record.";
+      Swal.fire("Error", msg, "error");
     }
   };
 
   // Calculations for Summary Cards
   const getTotals = () => {
+    if (backendTotals) {
+      return backendTotals;
+    }
+
     let cashOnHand = 0;
     let cashInBank = 0;
     let savingsDeposit = 0;
@@ -249,30 +307,28 @@ const CashReceiptsPage = () => {
     let grandTotal = 0;
 
     records.forEach(r => {
-      const amt = parseFloat(r.amount_received.toString()) || 0;
+      const amt = parseFloat(r.amount_received?.toString() || "0") || 0;
 
-      // Determine payment method
-      let method = "Cash";
-      if (r.remarks && r.remarks.startsWith("[Method: ")) {
+      let method = r.payment_method || "Cash";
+      if (!r.payment_method && r.remarks && r.remarks.startsWith("[Method: ")) {
         const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]/);
         if (match) method = match[1];
       }
 
-      if (method === "Cash") {
+      if (method.trim().toLowerCase() === "cash") {
         cashOnHand += amt;
       } else {
         cashInBank += amt;
       }
 
-      // Classify
-      const cls = r.source_of_income;
-      if (cls === "Savings Deposit") {
+      const cls = (r.source_of_income || "").trim().toLowerCase();
+      if (cls === "savings deposit") {
         savingsDeposit += amt;
-      } else if (cls === "Share Capital") {
+      } else if (cls === "share capital") {
         shareCapital += amt;
-      } else if (cls === "Loan Payment") {
+      } else if (cls === "loan payment") {
         loanPayment += amt;
-      } else if (cls === "Interest Income") {
+      } else if (cls === "interest income") {
         interestIncome += amt;
       } else {
         miscIncome += amt;
@@ -295,108 +351,152 @@ const CashReceiptsPage = () => {
 
   const totals = getTotals();
 
+  const getAllExportRecords = async (): Promise<CashReceiptRecord[]> => {
+    if (lastPage <= 1) {
+      return records;
+    }
+    try {
+      const res = await BooksOfAccountsService.loadCashReceipts(
+        1, search, startDate, endDate, 10000, sortBy, sortOrder
+      );
+      return res.data.data || records;
+    } catch (e) {
+      console.error("Failed to load all records for export:", e);
+      return records;
+    }
+  };
+
   // Export & Print functions
   const handlePrintReceipt = (r: CashReceiptRecord) => {
-    // Parse payment method
-    let method = "Cash";
+    let method = r.payment_method || "Cash";
     let restRemarks = r.remarks || "";
     if (r.remarks && r.remarks.startsWith("[Method: ")) {
       const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
       if (match) {
-        method = match[1];
+        if (!r.payment_method) method = match[1];
         restRemarks = match[2];
       }
     }
 
+    const cleanDate = r.receipt_date
+      ? (typeof r.receipt_date === "string" ? r.receipt_date.split("T")[0].split(" ")[0] : r.receipt_date)
+      : "";
+
     const headers = ["Field", "Details"];
     const rows = [
       ["Official Receipt No", r.or_number],
-      ["Receipt Date", r.receipt_date],
+      ["Receipt Date", cleanDate],
       ["Received From", r.received_from],
       ["Payment Method", method],
       ["Income Classification", r.source_of_income],
-      ["Amount Received", `₱ ${parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
+      ["Amount Received", `₱ ${parseFloat(r.amount_received?.toString() || "0").toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
       ["Particulars", r.description],
-      ["Recorded By", r.recorded_by],
+      ["Recorded By", r.recorded_by || "admin"],
       ["Remarks", restRemarks || "N/A"]
     ];
     printReport(`Official Receipt - ${r.or_number}`, headers, rows);
   };
 
-  const handleExportExcel = () => {
-    const dataToExport = records.map(r => {
-      let method = "Cash";
+  const handleExportExcel = async () => {
+    const list = await getAllExportRecords();
+    if (!list || list.length === 0) {
+      Swal.fire("No Data", "There are no cash receipt records to export.", "info");
+      return;
+    }
+    const dataToExport = list.map(r => {
+      let method = r.payment_method || "Cash";
       let restRemarks = r.remarks || "";
       if (r.remarks && r.remarks.startsWith("[Method: ")) {
         const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
         if (match) {
-          method = match[1];
+          if (!r.payment_method) method = match[1];
           restRemarks = match[2];
         }
       }
+      const cleanDate = r.receipt_date
+        ? (typeof r.receipt_date === "string" ? r.receipt_date.split("T")[0].split(" ")[0] : r.receipt_date)
+        : "";
       return {
         "OR Number": r.or_number,
-        "Date": r.receipt_date,
+        "Date": cleanDate,
         "Received From": r.received_from,
         "Payment Method": method,
         "Income Classification": r.source_of_income,
-        "Amount Received (₱)": r.amount_received,
+        "Amount Received (₱)": parseFloat(r.amount_received?.toString() || "0"),
         "Particulars": r.description,
-        "Recorded By": r.recorded_by,
+        "Recorded By": r.recorded_by || "admin",
         "Remarks": restRemarks || ""
       };
     });
     exportToExcel(dataToExport, `Cash_Receipts_Journal_Excel_${new Date().toISOString().split("T")[0]}`);
   };
 
-  const handleExportCSV = () => {
-    const dataToExport = records.map(r => {
-      let method = "Cash";
+  const handleExportCSV = async () => {
+    const list = await getAllExportRecords();
+    if (!list || list.length === 0) {
+      Swal.fire("No Data", "There are no cash receipt records to export.", "info");
+      return;
+    }
+    const dataToExport = list.map(r => {
+      let method = r.payment_method || "Cash";
       let restRemarks = r.remarks || "";
       if (r.remarks && r.remarks.startsWith("[Method: ")) {
         const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]\s*(.*)/);
         if (match) {
-          method = match[1];
+          if (!r.payment_method) method = match[1];
           restRemarks = match[2];
         }
       }
+      const cleanDate = r.receipt_date
+        ? (typeof r.receipt_date === "string" ? r.receipt_date.split("T")[0].split(" ")[0] : r.receipt_date)
+        : "";
       return {
         "OR Number": r.or_number,
-        "Date": r.receipt_date,
+        "Date": cleanDate,
         "Received From": r.received_from,
         "Payment Method": method,
         "Income Classification": r.source_of_income,
-        "Amount Received (₱)": r.amount_received,
+        "Amount Received (₱)": parseFloat(r.amount_received?.toString() || "0"),
         "Particulars": r.description,
-        "Recorded By": r.recorded_by,
+        "Recorded By": r.recorded_by || "admin",
         "Remarks": restRemarks || ""
       };
     });
     exportToExcel(dataToExport, `Cash_Receipts_Journal_CSV_${new Date().toISOString().split("T")[0]}`);
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    const list = await getAllExportRecords();
+    if (!list || list.length === 0) {
+      Swal.fire("No Data", "There are no cash receipt records to print.", "info");
+      return;
+    }
     const headers = ["OR Number", "Date", "Received From", "Classification", "Total Amount (₱)", "Recorded By"];
-    const rows = records.map(r => [
+    const rows = list.map(r => [
       r.or_number,
-      r.receipt_date,
+      r.receipt_date ? (typeof r.receipt_date === "string" ? r.receipt_date.split("T")[0].split(" ")[0] : r.receipt_date) : "",
       r.received_from,
       r.source_of_income,
-      `₱ ${parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      r.recorded_by
+      `₱ ${parseFloat(r.amount_received?.toString() || "0").toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      r.recorded_by || "admin"
     ]);
     printReport("Cash Receipts Journal Summary", headers, rows);
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const list = await getAllExportRecords();
+    if (!list || list.length === 0) {
+      Swal.fire("No Data", "There are no cash receipt records to export.", "info");
+      return;
+    }
     const headers = ["OR Number", "Date", "Received From", "Classification", "Total Amount (₱)", "Recorded By"];
-    const rows = records.map(r => [
+    const rows = list.map(r => [
       r.or_number,
-      r.receipt_date,
+      r.receipt_date ? (typeof r.receipt_date === "string" ? r.receipt_date.split("T")[0].split(" ")[0] : r.receipt_date) : "",
       r.received_from,
       r.source_of_income,
-      `₱ ${parseFloat(r.amount_received.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      r.recorded_by
+      `₱ ${parseFloat(r.amount_received?.toString() || "0").toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      r.recorded_by || "admin"
     ]);
     exportToPDF("Cash Receipts Journal Summary", headers, rows);
   };
@@ -582,7 +682,7 @@ const CashReceiptsPage = () => {
                   required
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary text-slate-800 font-semibold cursor-pointer"
                 >
-                  {["Share Capital", "Savings Deposit", "Loan Payment", "Interest Income", "Miscellaneous Income"].map((c) => (
+                  {incomeClassificationOptions.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
@@ -668,6 +768,12 @@ const CashReceiptsPage = () => {
                     placeholder="Search OR #, received from..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        fetchRecords(1, search, startDate, endDate);
+                      }
+                    }}
                     className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white text-slate-700 font-medium"
                   />
                 </div>
@@ -681,6 +787,12 @@ const CashReceiptsPage = () => {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        fetchRecords(1, search, startDate, endDate);
+                      }
+                    }}
                     className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none"
                   />
                   <span>to</span>
@@ -688,12 +800,22 @@ const CashReceiptsPage = () => {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        fetchRecords(1, search, startDate, endDate);
+                      }
+                    }}
                     className="px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white focus:outline-none"
                   />
                   {(startDate || endDate) && (
                     <button
                       type="button"
-                      onClick={() => { setStartDate(""); setEndDate(""); }}
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                        fetchRecords(1, search, "", "");
+                      }}
                       className="text-primary hover:underline font-bold text-[10px] cursor-pointer"
                     >
                       Clear
@@ -703,20 +825,11 @@ const CashReceiptsPage = () => {
 
                 <button
                   type="button"
-                  onClick={() => fetchRecords(1)}
+                  onClick={() => fetchRecords(1, search, startDate, endDate)}
                   className="px-3.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <FiFilter className="w-3.5 h-3.5 text-slate-500" />
                   <span>Filter</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="px-3.5 py-1.5 bg-primary hover:bg-primary-dark text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                >
-                  <FiPlus className="w-3.5 h-3.5" />
-                  <span>New Receipt</span>
                 </button>
               </div>
             </div>
@@ -764,26 +877,26 @@ const CashReceiptsPage = () => {
                     <tbody className="divide-y divide-slate-100 text-slate-700 bg-white">
                       {records.length > 0 ? (
                         records.map((r, index) => {
-                          const amt = parseFloat(r.amount_received.toString()) || 0;
+                          const amt = parseFloat(r.amount_received?.toString() || "0") || 0;
 
                           // Parse payment method
-                          let method = "Cash";
-                          if (r.remarks && r.remarks.startsWith("[Method: ")) {
+                          let method = r.payment_method || "Cash";
+                          if (!r.payment_method && r.remarks && r.remarks.startsWith("[Method: ")) {
                             const match = r.remarks.match(/^\[Method:\s*([^\]]+)\]/);
                             if (match) method = match[1];
                           }
 
                           // Debit Mapping
-                          const isCash = method === "Cash";
+                          const isCash = method.trim().toLowerCase() === "cash";
                           const cashOnHand = isCash ? amt : 0;
                           const cashInBank = !isCash ? amt : 0;
 
                           // Credit Mapping
-                          const cls = r.source_of_income;
-                          const isSavings = cls === "Savings Deposit";
-                          const isCapital = cls === "Share Capital";
-                          const isLoan = cls === "Loan Payment";
-                          const isInterest = cls === "Interest Income";
+                          const cls = (r.source_of_income || "").trim().toLowerCase();
+                          const isSavings = cls === "savings deposit";
+                          const isCapital = cls === "share capital";
+                          const isLoan = cls === "loan payment";
+                          const isInterest = cls === "interest income";
                           const isMisc = !isSavings && !isCapital && !isLoan && !isInterest;
 
                           const savingsVal = isSavings ? amt : 0;
@@ -800,7 +913,7 @@ const CashReceiptsPage = () => {
                           return (
                             <tr key={r.id} className={`hover:bg-slate-50/50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-slate-50/20"}`}>
                               <td className="px-3 py-3.5 whitespace-nowrap font-medium text-slate-500">
-                                {r.receipt_date ? (typeof r.receipt_date === 'string' ? r.receipt_date.split('T')[0] : r.receipt_date) : ""}
+                                {r.receipt_date ? (typeof r.receipt_date === 'string' ? r.receipt_date.split('T')[0].split(' ')[0] : r.receipt_date) : ""}
                               </td>
                               <td className="px-3 py-3.5 font-bold text-primary truncate" title={r.or_number}>
                                 {r.or_number}

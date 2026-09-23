@@ -4,10 +4,9 @@ import { useSidebar } from "../contexts/SidebarContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useSettings } from "../contexts/SettingContext";
 import {
-  FiHome,
+  FiGrid,
   FiUsers,
   FiPackage,
-  FiDollarSign,
   FiCheckSquare,
   FiBarChart2,
   FiSettings,
@@ -17,6 +16,7 @@ import {
   FiChevronRight,
   FiX
 } from "react-icons/fi";
+import { TbCurrencyPeso } from "react-icons/tb";
 
 const AppSidebar = () => {
   const { isOpen, toggleSidebar } = useSidebar();
@@ -24,7 +24,7 @@ const AppSidebar = () => {
   const { cooperativeName, cooperativeLogo } = useSettings();
   const location = useLocation();
 
-  const isBooksRoute = location.pathname.startsWith('/books-of-accounts');
+  const isBooksRoute = location.pathname.startsWith("/books-of-accounts");
   const [booksOpen, setBooksOpen] = useState(isBooksRoute);
 
   const isCurrentPath = (path: string) => {
@@ -32,14 +32,14 @@ const AppSidebar = () => {
   };
 
   const menuItems = [
-    { path: "/dashboard", text: "Dashboard", icon: <FiHome className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
-    { path: "/members", text: "Members", icon: <FiUsers className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
-    { path: "/productions", text: "Productions", icon: <FiPackage className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
-    { path: "/sales", text: "Sales Recording", icon: <FiDollarSign className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
-    { path: "/tasks", text: "Task Monitoring", icon: <FiCheckSquare className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
-    { path: "/reports", text: "Reports", icon: <FiBarChart2 className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
-    { path: "/users", text: "Users", icon: <FiUser className="w-5 h-5" />, roles: ['Administrator'] },
-    { path: "/settings", text: "Settings", icon: <FiSettings className="w-5 h-5" />, roles: ['Administrator', 'Staff'] },
+    { path: "/dashboard", text: "Dashboard", icon: <FiGrid className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/members", text: "Members", icon: <FiUsers className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/productions", text: "Productions", icon: <FiPackage className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/sales", text: "Sales Recording", icon: <TbCurrencyPeso className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/tasks", text: "Task Monitoring", icon: <FiCheckSquare className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/reports", text: "Reports", icon: <FiBarChart2 className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/users", text: "Users", icon: <FiUser className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
+    { path: "/settings", text: "Settings", icon: <FiSettings className="w-[18px] h-[18px]" strokeWidth={1.8} /> },
   ];
 
   const booksSubmenu = [
@@ -51,150 +51,177 @@ const AppSidebar = () => {
     { path: "/books-of-accounts/general-ledger", text: "General Ledger" },
   ];
 
-  const allowedMenuItems = menuItems.filter(item => !item.roles || (user && item.roles.includes(user.role)));
-  const isAdmin = user && user.role === 'Administrator';
+  const username = user?.username || "admin";
+  const roleDisplay = (user?.role || "Administrator").toUpperCase();
 
   return (
     <>
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Backdrop */}
       {!isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 blur-xs sm:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs sm:hidden"
           onClick={toggleSidebar}
         />
       )}
 
+      {/* Main Sidebar Container */}
       <aside
         id="top-bar-sidebar"
-        className={`fixed top-0 left-0 z-40 w-64 h-full bg-dark-green text-white transition-transform duration-300 ${isOpen ? "-translate-x-full" : "translate-x-0"
-          } sm:translate-x-0 border-r border-dark-green/30 shadow-xl flex flex-col`}
+        className={`fixed top-0 left-0 z-40 w-64 h-full bg-[var(--theme-sidebar-bg)] text-white transition-all duration-300 ${
+          isOpen ? "-translate-x-full" : "translate-x-0"
+        } sm:translate-x-0 border-r border-white/10 shadow-2xl flex flex-col`}
         aria-label="Sidebar"
       >
-        {/* Brand Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-sidebar-hover/40 bg-dark-green">
-          <Link to="/dashboard" className="flex items-center gap-3">
-            {cooperativeLogo ? (
-              <img
-                src={cooperativeLogo}
-                alt="Logo"
-                className="w-9 h-9 rounded-lg object-contain border border-white/10 p-1 bg-white/5 shadow-inner"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-lg bg-accent text-dark-green font-bold flex items-center justify-center text-lg shadow-inner">
-                {cooperativeName ? cooperativeName.charAt(0) : "C"}
-              </div>
-            )}
-            <div className="overflow-hidden">
-              <span className="text-base font-bold tracking-wider block leading-tight truncate max-w-30">
-                {cooperativeName || "CASCOFAMCO"}
+        {/* Standalone Brand & Logo Area (No container box, no borders) */}
+        <div className="flex items-center justify-between px-6 py-5.5 border-b border-white/[0.07] bg-black/20">
+          <Link to="/dashboard" className="flex items-center gap-3.5 group">
+            {/* Standalone Logo */}
+            <img
+              src={cooperativeLogo || "/niyog.png"}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/favicon.svg";
+              }}
+              alt="Ivisan Coconut"
+              className="w-8 h-8 object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
+            />
+            {/* Clean Modern Typography */}
+            <div className="overflow-hidden leading-tight">
+              <span className="text-[15px] font-semibold text-white tracking-tight block truncate">
+                Ivisan Smal…
               </span>
-              <span className="text-[10px] text-accent font-medium uppercase tracking-widest block truncate max-w-30">
-                Ivisan Coconut
+              <span className="text-[10px] font-medium text-[var(--theme-accent)]/90 tracking-widest uppercase block mt-0.5 truncate">
+                IVISAN COCONUT
               </span>
             </div>
           </Link>
+
           <button
             onClick={toggleSidebar}
-            className="sm:hidden p-1.5 rounded-lg hover:bg-sidebar-hover text-gray-300"
+            className="sm:hidden p-1.5 rounded-lg text-[var(--theme-accent)] hover:text-white hover:bg-white/[0.08] transition-colors"
+            aria-label="Close sidebar"
           >
             <FiX className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Menu Navigation */}
-        <div className="flex-1 px-4 py-6 overflow-y-auto space-y-2">
-          <ul className="space-y-1.5">
-            {allowedMenuItems.map((item, index) => {
+        {/* Navigation Menu */}
+        <div className="flex-1 px-3.5 py-5 overflow-y-auto space-y-1 scrollbar-none">
+          <ul className="space-y-1">
+            {menuItems.map((item, index) => {
               const active = isCurrentPath(item.path);
               return (
                 <li key={index}>
                   <Link
                     to={item.path}
-                    className={`flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-200 group ${active
-                      ? "bg-accent text-dark-green font-semibold shadow-md translate-x-1"
-                      : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
-                      }`}
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all duration-150 group ${
+                      active
+                        ? "bg-[var(--theme-accent)] text-[#062c19] font-semibold shadow-sm"
+                        : "text-white/80 hover:text-white hover:bg-[var(--theme-sidebar-hover)] font-medium"
+                    }`}
                   >
-                    <span className={`transition-transform duration-200 group-hover:scale-110 ${active ? 'text-dark-green' : 'text-gray-400 group-hover:text-white'}`}>
+                    <span
+                      className={`transition-colors duration-150 ${
+                        active ? "text-[#062c19]" : "text-[var(--theme-accent)]/80 group-hover:text-[var(--theme-accent)]"
+                      }`}
+                    >
                       {item.icon}
                     </span>
-                    <span className="text-sm tracking-wide">{item.text}</span>
+                    <span className="tracking-tight">{item.text}</span>
                   </Link>
                 </li>
               );
             })}
 
-            {/* 📚 Books of Accounts (Administrator and Staff) */}
-            {user && (user.role === 'Administrator' || user.role === 'Staff') && (
-              <li className="pt-1">
-                <button
-                  onClick={() => setBooksOpen(!booksOpen)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group ${isBooksRoute
-                      ? "bg-sidebar-hover text-accent font-semibold"
-                      : "text-gray-300 hover:bg-sidebar-hover hover:text-white"
-                    }`}
-                >
-                  <div className="flex items-center gap-3.5">
-                    <FiBookOpen className={`w-5 h-5 ${isBooksRoute ? 'text-accent' : 'text-gray-400 group-hover:text-white'}`} />
-                    <span className="text-sm tracking-wide">📚 Books of Accounts</span>
-                  </div>
-                  {booksOpen ? (
-                    <FiChevronDown className="w-4 h-4 text-gray-400" />
-                  ) : (
-                    <FiChevronRight className="w-4 h-4 text-gray-400" />
-                  )}
-                </button>
+            {/* Thin Horizontal Divider Line separating Books of Accounts */}
+            <li className="py-2 px-1" aria-hidden="true">
+              <div className="h-px bg-white/15 w-full" />
+            </li>
 
-                {/* Submenu */}
-                {booksOpen && (
-                  <ul className="mt-1.5 ml-4 pl-3 border-l border-sidebar-hover/60 space-y-1">
-                    {booksSubmenu.map((sub, sIdx) => {
-                      const subActive = isCurrentPath(sub.path);
-                      return (
-                        <li key={sIdx}>
-                          <Link
-                            to={sub.path}
-                            className={`block px-3 py-2 rounded-lg text-xs tracking-wide transition-all ${subActive
-                                ? "bg-accent text-dark-green font-bold shadow-xs"
-                                : "text-gray-300 hover:text-white hover:bg-sidebar-hover/50"
-                              }`}
-                          >
-                            {sub.text}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
+            {/* Books of Accounts Navigation Item */}
+            <li className="pt-0.5">
+              <button
+                onClick={() => setBooksOpen(!booksOpen)}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all duration-150 group cursor-pointer ${
+                  isBooksRoute
+                    ? "bg-[var(--theme-accent)] text-[#062c19] font-semibold shadow-sm"
+                    : "text-white/80 hover:text-white hover:bg-[var(--theme-sidebar-hover)] font-medium"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FiBookOpen
+                    className={`w-[18px] h-[18px] transition-colors duration-150 ${
+                      isBooksRoute ? "text-[#062c19]" : "text-[var(--theme-accent)]/80 group-hover:text-[var(--theme-accent)]"
+                    }`}
+                    strokeWidth={1.8}
+                  />
+                  <span className="tracking-tight">Books of Accounts</span>
+                </div>
+                {booksOpen ? (
+                  <FiChevronDown className="w-4 h-4 opacity-70" />
+                ) : (
+                  <FiChevronRight className="w-4 h-4 opacity-70" />
                 )}
-              </li>
-            )}
+              </button>
+
+              {/* Submenu */}
+              {booksOpen && (
+                <ul className="mt-1 ml-4 pl-3 border-l border-white/[0.1] space-y-1 py-1">
+                  {booksSubmenu.map((sub, sIdx) => {
+                    const subActive = isCurrentPath(sub.path);
+                    return (
+                      <li key={sIdx}>
+                        <Link
+                          to={sub.path}
+                          className={`block px-3 py-1.5 rounded-lg text-xs tracking-wide transition-colors duration-150 ${
+                            subActive
+                              ? "bg-[var(--theme-accent)] text-[#062c19] font-semibold shadow-2xs"
+                              : "text-white/70 hover:text-white hover:bg-[var(--theme-sidebar-hover)]"
+                          }`}
+                        >
+                          {sub.text}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
           </ul>
         </div>
 
-        {/* Logged in User Profile Info (Footer of Sidebar) */}
-        {user && (
-          <div className="p-4 border-t border-sidebar-hover/30 bg-dark-green/85 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-sidebar-hover border border-sidebar-hover/60 overflow-hidden flex items-center justify-center shrink-0">
-              {user.profile_picture_url ? (
-                <img
-                  src={user.profile_picture_url}
-                  alt="profile"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-sm font-bold text-accent uppercase">
-                  {user.username.substring(0, 2)}
-                </span>
-              )}
+        {/* Polished Admin Profile Section (Bottom) */}
+        <div className="p-4 border-t border-white/[0.07] bg-black/20">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors">
+            {/* User Avatar with status dot */}
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 rounded-full bg-white/10 border border-white/10 overflow-hidden flex items-center justify-center">
+                {user?.profile_picture_url ? (
+                  <img
+                    src={user.profile_picture_url}
+                    alt={username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs font-bold text-[var(--theme-accent)] uppercase">
+                    {username.substring(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              {/* Online status indicator */}
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[var(--theme-accent)] ring-2 ring-black/40"></span>
             </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-white truncate">{user.username}</p>
-              <span className="text-[10px] text-accent bg-sidebar-hover/80 px-2 py-0.5 rounded-full font-medium inline-block mt-0.5 uppercase tracking-wide">
-                {user.role}
+
+            {/* Profile Typography */}
+            <div className="overflow-hidden min-w-0 flex-1 leading-snug">
+              <p className="text-xs font-semibold text-white tracking-tight truncate">
+                {username}
+              </p>
+              <span className="text-[10px] font-medium tracking-widest text-[var(--theme-accent)] uppercase block mt-0.5 truncate">
+                {roleDisplay}
               </span>
             </div>
           </div>
-        )}
+        </div>
       </aside>
     </>
   );

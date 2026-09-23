@@ -2,13 +2,14 @@ import { useState } from "react";
 import ReportService from "../../services/ReportService";
 import {
   FiBarChart2, FiDownload, FiPrinter, FiUsers, FiPackage,
-  FiDollarSign, FiArchive, FiCheckCircle,
+  FiArchive, FiCheckCircle,
 } from "react-icons/fi";
+import { TbCurrencyPeso } from "react-icons/tb";
 import Swal from "sweetalert2";
 
 const reportTypes = [
   { id: "Production", label: "Production", icon: <FiPackage className="w-5 h-5" /> },
-  { id: "Sales", label: "Sales", icon: <FiDollarSign className="w-5 h-5" /> },
+  { id: "Sales", label: "Sales", icon: <TbCurrencyPeso className="w-5 h-5" /> },
   { id: "Member", label: "Members", icon: <FiUsers className="w-5 h-5" /> },
   { id: "Financial", label: "Financial", icon: <FiBarChart2 className="w-5 h-5" /> },
   { id: "Task", label: "Tasks", icon: <FiCheckCircle className="w-5 h-5" /> },

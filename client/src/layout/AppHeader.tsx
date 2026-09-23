@@ -3,19 +3,21 @@ import { useHeader } from "../contexts/HeaderContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useState, type FormEvent } from "react";
-import { FiMenu, FiLogOut, FiSettings } from "react-icons/fi";
+import { FiMenu, FiLogOut, FiSettings, FiSearch, FiChevronDown } from "react-icons/fi";
 import Swal from "sweetalert2";
 import { useTheme } from "../contexts/ThemeContext";
-import { useSettings } from "../contexts/SettingContext";
 
 const AppHeader = () => {
   const { currentTheme } = useTheme();
   const { isOpen, toggleUserMenu } = useHeader();
   const { toggleSidebar } = useSidebar();
   const { user, logout } = useAuth();
-  const { cooperativeName, cooperativeLogo } = useSettings();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const username = user?.username || "admin";
+  const userRole = user?.role || "Administrator";
 
   const handleLogout = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,120 +49,106 @@ const AppHeader = () => {
 
   return (
     <>
-      <nav className="fixed top-0 z-30 w-full bg-navbar-bg border-b border-slate-100 shadow-xs h-16 flex items-center justify-between px-4 sm:px-6">
+      <header className="fixed top-0 sm:left-64 sm:w-[calc(100%-16rem)] w-full z-30 bg-white border-b border-slate-200/80 shadow-[0_1px_4px_0_rgba(0,0,0,0.02)] h-18 sm:h-20 flex items-center justify-between px-4 sm:px-8 transition-all">
         {isOpen && (
           <div className="fixed inset-0 z-10 bg-transparent" onClick={toggleUserMenu} />
         )}
-        {/* Toggle Button & Brand for mobile */}
-        <div className="flex items-center gap-3">
+
+        {/* Left Side: Mobile Menu Button & Large Rounded Search Field */}
+        <div className="flex items-center gap-3.5 flex-1 max-w-xl">
           <button
             type="button"
             onClick={toggleSidebar}
-            className="inline-flex items-center p-2 text-slate-500 rounded-lg sm:hidden hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-100"
+            className="inline-flex items-center p-2 text-slate-500 rounded-xl sm:hidden hover:bg-slate-100 focus:outline-none"
+            aria-label="Open sidebar"
           >
-            <span className="sr-only">Open sidebar</span>
             <FiMenu className="w-6 h-6" />
           </button>
 
-          <div className="sm:hidden flex items-center gap-2">
-            {cooperativeLogo ? (
-              <img
-                src={cooperativeLogo}
-                alt="Logo"
-                className="w-7 h-7 object-contain rounded-md"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-md bg-primary text-white font-bold flex items-center justify-center text-xs shadow-xs">
-                {cooperativeName ? cooperativeName.charAt(0) : "C"}
-              </div>
-            )}
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2">
-            {cooperativeLogo ? (
-              <img
-                src={cooperativeLogo}
-                alt="Logo"
-                className="w-8 h-8 object-contain rounded-md"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-md bg-primary text-white font-bold flex items-center justify-center text-xs shadow-xs">
-                {cooperativeName ? cooperativeName.charAt(0) : "C"}
-              </div>
-            )}
+          {/* Large rounded search field */}
+          <div className="relative w-full max-w-sm sm:max-w-md">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+              <FiSearch className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search here…"
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50/90 hover:bg-slate-100/70 focus:bg-white text-sm text-slate-700 placeholder-slate-400 rounded-full border border-slate-200/90 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+            />
           </div>
         </div>
 
-        {/* User profile dropdown and status */}
-        <div className="flex items-center gap-4">
-          {user && (
-            <span className="hidden md:inline-flex text-xs font-semibold px-3 py-1 bg-green-50 text-primary border border-green-100 rounded-full">
-              System Role: {user.role}
-            </span>
-          )}
+        {/* Right Side: Role Badge & Admin Avatar with Dropdown */}
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          {/* Rounded Badge: System Role: Administrator */}
+          <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-xs font-semibold tracking-wide shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+            <span>System Role: {userRole}</span>
+          </div>
 
-          {user && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={toggleUserMenu}
-                className="flex items-center gap-2 text-sm bg-slate-50 border border-slate-100 hover:bg-slate-100 rounded-full py-1.5 px-3 focus:outline-none transition-colors duration-150 cursor-pointer"
-              >
-                <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 overflow-hidden flex items-center justify-center">
-                  {user.profile_picture_url ? (
-                    <img
-                      className="w-full h-full object-cover"
-                      src={user.profile_picture_url}
-                      alt="user profile"
-                    />
-                  ) : (
-                    <span className="text-xs font-bold text-primary uppercase">
-                      {user.username.substring(0, 2)}
-                    </span>
-                  )}
-                </div>
-                <span className="hidden sm:inline font-medium text-slate-700 max-w-28 truncate">
-                  {user.username}
-                </span>
-              </button>
+          {/* Admin Avatar Pill with Dropdown Arrow */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={toggleUserMenu}
+              className="flex items-center gap-2.5 text-sm bg-slate-50 hover:bg-slate-100/80 border border-slate-200/80 rounded-full py-1.5 pl-1.5 pr-3 focus:outline-none transition-all cursor-pointer shadow-xs"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary text-white font-bold flex items-center justify-center text-xs overflow-hidden shadow-inner">
+                {user?.profile_picture_url ? (
+                  <img
+                    className="w-full h-full object-cover"
+                    src={user.profile_picture_url}
+                    alt={username}
+                  />
+                ) : (
+                  <span className="uppercase">{username.substring(0, 2)}</span>
+                )}
+              </div>
+              <span className="font-semibold text-slate-800 text-sm max-w-28 truncate">
+                {username}
+              </span>
+              <FiChevronDown className="w-4 h-4 text-slate-400" />
+            </button>
 
-              {/* Profile dropdown menu */}
-              <div
-                className={`absolute right-0 mt-2 w-52 bg-white border border-slate-100 rounded-xl shadow-lg divide-y divide-slate-50 z-50 transition-all duration-200 transform origin-top-right ${isOpen ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
-                  }`}
-                id="dropdown-user"
-              >
-                <div className="px-4 py-3">
-                  <p className="text-xs font-semibold text-slate-400">Account Details</p>
-                  <p className="text-sm font-semibold text-slate-800 truncate mt-0.5">{user.username}</p>
-                  <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-                </div>
-                <div className="py-1">
-                  <Link
-                    to="/settings"
-                    className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                    onClick={toggleUserMenu}
-                  >
-                    <FiSettings className="w-4 h-4 text-slate-400" />
-                    <span>Settings</span>
-                  </Link>
-                </div>
-                <div className="py-1">
-                  <button
-                    type="button"
-                    className="flex items-center gap-2.5 w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors cursor-pointer disabled:opacity-50"
-                    onClick={handleLogout}
-                    disabled={isLoading}
-                  >
-                    <FiLogOut className="w-4 h-4" />
-                    <span>{isLoading ? "Signing out..." : "Sign out"}</span>
-                  </button>
-                </div>
+            {/* Profile Dropdown Menu */}
+            <div
+              className={`absolute right-0 mt-2.5 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-xl divide-y divide-slate-100 z-50 transition-all duration-200 transform origin-top-right ${
+                isOpen ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
+              }`}
+              id="dropdown-user"
+            >
+              <div className="px-4 py-3.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Signed In Account</p>
+                <p className="text-sm font-bold text-slate-800 truncate mt-0.5">{username}</p>
+                <p className="text-xs text-slate-500 truncate">{user?.email || "admin@ivisan.ph"}</p>
+              </div>
+              <div className="py-1.5">
+                <Link
+                  to="/settings"
+                  className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-primary/10 hover:text-primary transition-colors"
+                  onClick={toggleUserMenu}
+                >
+                  <FiSettings className="w-4 h-4 text-slate-400" />
+                  <span>Settings</span>
+                </Link>
+              </div>
+              <div className="py-1.5">
+                <button
+                  type="button"
+                  className="flex items-center gap-2.5 w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer disabled:opacity-50"
+                  onClick={handleLogout}
+                  disabled={isLoading}
+                >
+                  <FiLogOut className="w-4 h-4" />
+                  <span>{isLoading ? "Signing out..." : "Sign out"}</span>
+                </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
-      </nav>
+      </header>
     </>
   );
 };

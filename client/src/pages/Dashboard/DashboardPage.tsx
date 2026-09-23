@@ -4,17 +4,20 @@ import DashboardService from "../../services/DashboardService";
 import {
   FiUsers,
   FiPackage,
-  FiDollarSign,
   FiCheckSquare,
   FiActivity,
-  FiAlertTriangle,
   FiTrendingUp,
   FiClock,
   FiArrowDownLeft,
   FiArrowUpRight,
   FiCreditCard,
-  FiBookOpen
+  FiBookOpen,
+  FiCalendar,
+  FiChevronDown,
+  FiAlertTriangle,
+  FiRefreshCw
 } from "react-icons/fi";
+import { TbCurrencyPeso } from "react-icons/tb";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -89,19 +92,24 @@ interface DashboardData {
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  // Initialize data as null and loading as true to NEVER display stale/fake records before API finishes
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState("Jun 29, 2025 - Aug 29, 2025");
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   const fetchDashboard = async () => {
     try {
       setLoading(true);
-      setError("");
+      setError(null);
       const res = await DashboardService.getDashboardData();
-      setData(res.data);
+      if (res && res.data) {
+        setData(res.data);
+      }
     } catch (err: any) {
       console.error("Failed to load dashboard data: ", err);
-      setError("Failed to fetch dashboard data. Please try again.");
+      setError(err?.response?.data?.message || "Failed to fetch live dashboard analytics. Please verify server connection.");
     } finally {
       setLoading(false);
     }
@@ -111,45 +119,216 @@ const DashboardPage = () => {
     fetchDashboard();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-semibold text-slate-500">Loading Dashboard Analytics...</p>
-      </div>
-    );
-  }
+  // Floating label plugin for July Bar: dynamically checks July value
+  const productionFloatingBadgePlugin = {
+    id: "productionFloatingBadge",
+    afterDatasetsDraw(chart: any) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      const julyIndex = chart.data.labels?.findIndex(
+        (label: string) => label.toLowerCase() === "july"
+      ) ?? 4;
+      
+      const rawValue = chart.data.datasets?.[0]?.data?.[julyIndex];
+      if (rawValue === undefined || rawValue === null || Number(rawValue) <= 0) {
+        return; // Never draw floating label if July has 0 or is deleted
+      }
 
-  if (error || !data) {
+      const bar = meta.data?.[julyIndex];
+      if (!bar) return;
+
+      const xPos = bar.x;
+      const yPos = bar.y - 10;
+      const text = `${Number(rawValue).toLocaleString()} kg`;
+
+      ctx.save();
+      ctx.font = "bold 11px Poppins, sans-serif";
+      const textWidth = ctx.measureText(text).width;
+      const boxWidth = textWidth + 18;
+      const boxHeight = 24;
+      const boxX = xPos - boxWidth / 2;
+      const boxY = yPos - boxHeight;
+
+      // Soft Shadow
+      ctx.shadowColor = "rgba(6, 78, 59, 0.25)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+
+      // Pill Background
+      ctx.fillStyle = "#064E3B"; // Dark emerald
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+      ctx.fill();
+
+      // Pointer Arrow
+      ctx.beginPath();
+      ctx.moveTo(xPos - 5, boxY + boxHeight);
+      ctx.lineTo(xPos + 5, boxY + boxHeight);
+      ctx.lineTo(xPos, boxY + boxHeight + 5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text inside pill
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = "#A7F3D0"; // Mint green text
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, xPos, boxY + boxHeight / 2);
+      ctx.restore();
+    }
+  };
+
+  // Floating label plugin for July Sales Line Peak: dynamically checks July value
+  const salesFloatingBadgePlugin = {
+    id: "salesFloatingBadge",
+    afterDatasetsDraw(chart: any) {
+      const { ctx } = chart;
+      const meta = chart.getDatasetMeta(0);
+      const julyIndex = chart.data.labels?.findIndex(
+        (label: string) => label.toLowerCase() === "july"
+      ) ?? 4;
+
+      const rawValue = chart.data.datasets?.[0]?.data?.[julyIndex];
+      if (rawValue === undefined || rawValue === null || Number(rawValue) <= 0) {
+        return; // Never draw floating label if July has 0 or is deleted
+      }
+
+      const point = meta.data?.[julyIndex];
+      if (!point) return;
+
+      const xPos = point.x;
+      const yPos = point.y - 12;
+      const text = `₱ ${Number(rawValue).toLocaleString()}`;
+
+      ctx.save();
+      ctx.font = "bold 11px Poppins, sans-serif";
+      const textWidth = ctx.measureText(text).width;
+      const boxWidth = textWidth + 18;
+      const boxHeight = 24;
+      const boxX = xPos - boxWidth / 2;
+      const boxY = yPos - boxHeight;
+
+      // Soft Shadow
+      ctx.shadowColor = "rgba(6, 78, 59, 0.25)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+
+      // Pill Background
+      ctx.fillStyle = "#064E3B";
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+      ctx.fill();
+
+      // Pointer Arrow
+      ctx.beginPath();
+      ctx.moveTo(xPos - 5, boxY + boxHeight);
+      ctx.lineTo(xPos + 5, boxY + boxHeight);
+      ctx.lineTo(xPos, boxY + boxHeight + 5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text inside pill
+      ctx.shadowColor = "transparent";
+      ctx.fillStyle = "#A7F3D0";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, xPos, boxY + boxHeight / 2);
+      ctx.restore();
+    }
+  };
+
+  // Modern Skeleton Loader while loading initially
+  if (loading && !data) {
     return (
-      <div className="p-6 bg-red-50 text-red-700 border-l-4 border-red-500 rounded-lg flex items-center gap-3">
-        <FiAlertTriangle className="w-6 h-6 shrink-0" />
-        <div>
-          <p className="font-bold">Error Loading Dashboard</p>
-          <p className="text-sm">{error || "Could not retrieve system summary counters."}</p>
-          <button onClick={fetchDashboard} className="mt-2 text-xs bg-red-600 text-white font-bold py-1.5 px-3 rounded-lg hover:bg-red-700 transition">
-            Retry Fetching
-          </button>
+      <div className="space-y-7 sm:space-y-8 pb-10">
+        {/* Welcome Skeleton */}
+        <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-xs flex justify-between items-center animate-pulse">
+          <div className="space-y-2">
+            <div className="h-6 w-64 bg-slate-200 rounded-lg"></div>
+            <div className="h-4 w-96 bg-slate-100 rounded-lg"></div>
+          </div>
+          <div className="h-8 w-36 bg-slate-100 rounded-full"></div>
+        </div>
+
+        {/* 4 KPI Cards Skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white p-6 rounded-[22px] border border-slate-200/80 shadow-xs animate-pulse space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-3.5 w-24 bg-slate-200 rounded"></div>
+                  <div className="h-8 w-20 bg-slate-300 rounded-lg"></div>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-slate-100"></div>
+              </div>
+              <div className="h-3 w-32 bg-slate-100 rounded"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Books of Accounts Skeleton */}
+        <div className="bg-white rounded-[22px] p-6 sm:p-7 border border-slate-200/80 shadow-xs animate-pulse space-y-5">
+          <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+            <div className="h-5 w-72 bg-slate-200 rounded"></div>
+            <div className="h-8 w-48 bg-slate-100 rounded-full"></div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-28 bg-slate-100 rounded-[18px]"></div>
+            ))}
+          </div>
+        </div>
+
+        {/* Charts Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7">
+          <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-xs animate-pulse h-80"></div>
+          <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-xs animate-pulse h-80"></div>
         </div>
       </div>
     );
   }
 
-  // Chart Configuration
+  // Error State if API request fails
+  if (error || !data) {
+    return (
+      <div className="p-8 bg-white border border-rose-200 rounded-[22px] shadow-sm flex flex-col items-center justify-center text-center space-y-4 max-w-xl mx-auto my-12">
+        <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+          <FiAlertTriangle className="w-7 h-7" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-slate-800">Unable to Load Dashboard</h3>
+          <p className="text-sm text-slate-500 mt-1 max-w-md">
+            {error || "Could not retrieve system summary metrics from the server."}
+          </p>
+        </div>
+        <button
+          onClick={fetchDashboard}
+          className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2.5 px-5 rounded-xl shadow-md transition cursor-pointer text-sm"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+          <span>Retry Loading</span>
+        </button>
+      </div>
+    );
+  }
+
+  // Production Chart Configuration from Live Database
   const productionChartData = {
     labels: data.charts.labels,
     datasets: [
       {
         label: "Production (kg)",
         data: data.charts.production,
-        backgroundColor: "rgba(31, 107, 61, 0.7)",
-        borderColor: "rgba(31, 107, 61, 1)",
-        borderWidth: 1.5,
+        backgroundColor: "rgba(16, 185, 129, 0.85)",
+        hoverBackgroundColor: "rgba(5, 150, 105, 1)",
         borderRadius: 8,
-      },
-    ],
+        borderSkipped: false,
+        barThickness: 38
+      }
+    ]
   };
 
+  // Sales Chart Configuration from Live Database
   const salesChartData = {
     labels: data.charts.labels,
     datasets: [
@@ -157,189 +336,404 @@ const DashboardPage = () => {
         fill: true,
         label: "Sales Amount (₱)",
         data: data.charts.sales,
-        borderColor: "rgba(47, 133, 90, 1)",
-        backgroundColor: "rgba(47, 133, 90, 0.1)",
-        tension: 0.3,
-        pointBackgroundColor: "rgba(47, 133, 90, 1)",
-        pointHoverRadius: 7,
-      },
-    ],
+        borderColor: "rgba(16, 185, 129, 1)",
+        borderWidth: 2.75,
+        backgroundColor: (context: any) => {
+          const ctx = context.chart.ctx;
+          const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+          gradient.addColorStop(0, "rgba(16, 185, 129, 0.25)");
+          gradient.addColorStop(1, "rgba(16, 185, 129, 0.01)");
+          return gradient;
+        },
+        tension: 0.38,
+        pointBackgroundColor: "rgba(255, 255, 255, 1)",
+        pointBorderColor: "rgba(16, 185, 129, 1)",
+        pointBorderWidth: 2.5,
+        pointRadius: (ctx: any) => (ctx.dataIndex === 4 ? 6 : 4),
+        pointHoverRadius: 7
+      }
+    ]
   };
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-xs gap-4">
+    <div className="space-y-7 sm:space-y-8 pb-10">
+      {/* Welcome & Overview Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">CASCOFAMCO Operations Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Welcome back, <span className="font-semibold text-primary">{user?.username}</span>. Here is today's cooperative overview.</p>
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              CASCOFAMCO Operations Dashboard
+            </h1>
+          </div>
+          <p className="text-sm text-slate-500 mt-1">
+            Welcome back, <span className="font-semibold text-emerald-800">{user?.username || "admin"}</span>. Here is your coconut cooperative overview.
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-xs bg-slate-50 border border-slate-150 px-3 py-1.5 rounded-xl font-medium text-slate-600">
-          <FiClock className="w-4 h-4 text-slate-400" />
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+        <div className="flex items-center gap-2 text-xs bg-slate-50/90 border border-slate-200/80 px-4 py-2 rounded-full font-medium text-slate-600 shadow-2xs">
+          <FiClock className="w-3.5 h-3.5 text-emerald-600" />
+          <span>Last sync: {new Date().toLocaleTimeString()}</span>
         </div>
       </div>
 
-      {/* Low Stock Alerts Banner */}
-      {data.quick_stats.low_stock_alerts.length > 0 && (
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-2xl flex items-start gap-3">
-          <FiAlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-          <div>
-            <h3 className="font-bold text-amber-800 text-sm">Low Stock Alert!</h3>
-            <div className="text-xs text-amber-700 mt-1 flex flex-wrap gap-x-6 gap-y-1">
-              {data.quick_stats.low_stock_alerts.map((alert, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
-                  <strong>{alert.product}</strong>: {alert.stock.toLocaleString()} kg remaining
-                </span>
-              ))}
+      {/* Low Stock Alerts Banner (if any) */}
+      {(() => {
+        const excludedAlertProducts = ["coir fiber", "dessicated coconut", "desiccated coconut"];
+        const filteredAlerts = (data.quick_stats.low_stock_alerts || []).filter(
+          (alert) => !excludedAlertProducts.includes(alert.product.trim().toLowerCase())
+        );
+
+        if (filteredAlerts.length === 0) return null;
+
+        return (
+          <div className="bg-amber-50/80 border-l-4 border-amber-500 p-4 rounded-r-2xl flex items-start gap-3 shadow-2xs">
+            <FiAlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="font-bold text-amber-900 text-sm">Low Stock Alert!</h3>
+              <div className="text-xs text-amber-800 mt-1 flex flex-wrap gap-x-6 gap-y-1">
+                {filteredAlerts.map((alert, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
+                    <strong>{alert.product}</strong>: {alert.stock.toLocaleString()} kg remaining
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* Primary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Total Members */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-5 hover:shadow-md transition-shadow">
-          <div className="p-3.5 rounded-xl bg-green-50 text-primary">
-            <FiUsers className="w-6 h-6" />
+      {/* 1. Main Dashboard: Four Large KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+        {/* TOTAL MEMBERS */}
+        <div className="bg-white p-6 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Members</p>
+              <h3 className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                {data.cards.total_members}
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 ring-4 ring-emerald-50/60 flex items-center justify-center shrink-0">
+              <FiUsers className="w-5 h-5" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Members</p>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">{data.cards.total_members}</h3>
-          </div>
-        </div>
-
-        {/* Total Production */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-5 hover:shadow-md transition-shadow">
-          <div className="p-3.5 rounded-xl bg-green-50 text-primary">
-            <FiPackage className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Production</p>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">{data.cards.total_production_kg.toLocaleString()} <span className="text-xs text-slate-400 font-normal">kg</span></h3>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+            <FiTrendingUp className="w-3.5 h-3.5" />
+            <span>Active cooperative members</span>
           </div>
         </div>
 
-        {/* Total Sales */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-5 hover:shadow-md transition-shadow">
-          <div className="p-3.5 rounded-xl bg-green-50 text-primary">
-            <FiDollarSign className="w-6 h-6" />
+        {/* TOTAL PRODUCTION */}
+        <div className="bg-white p-6 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Production</p>
+              <h3 className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                {data.cards.total_production_kg.toLocaleString()}{" "}
+                <span className="text-sm font-normal text-slate-400">kg</span>
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 ring-4 ring-emerald-50/60 flex items-center justify-center shrink-0">
+              <FiPackage className="w-5 h-5" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Wholesale Sales</p>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">₱ {data.cards.total_sales_amount.toLocaleString()}</h3>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+            <FiTrendingUp className="w-3.5 h-3.5" />
+            <span>Verified harvest volume</span>
           </div>
         </div>
 
-        {/* Pending Tasks */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex items-center gap-5 hover:shadow-md transition-shadow">
-          <div className="p-3.5 rounded-xl bg-green-50 text-primary">
-            <FiCheckSquare className="w-6 h-6" />
+        {/* TOTAL WHOLESALE SALES */}
+        <div className="bg-white p-6 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Wholesale Sales</p>
+              <h3 className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                ₱ {data.cards.total_sales_amount.toLocaleString()}
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 ring-4 ring-emerald-50/60 flex items-center justify-center shrink-0">
+              <TbCurrencyPeso className="w-5 h-5" />
+            </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Operations Tasks</p>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">{data.cards.pending_tasks}</h3>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
+            <FiTrendingUp className="w-3.5 h-3.5" />
+            <span>Commercial copra sales</span>
+          </div>
+        </div>
+
+        {/* ACTIVE OPERATIONS TASKS */}
+        <div className="bg-white p-6 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] hover:shadow-[0_8px_25px_-5px_rgba(0,0,0,0.06)] transition-all duration-200 flex flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Operations Tasks</p>
+              <h3 className="text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+                {data.cards.pending_tasks}
+              </h3>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 ring-4 ring-emerald-50/60 flex items-center justify-center shrink-0">
+              <FiCheckSquare className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+            <span>{data.cards.pending_tasks === 0 ? "All operations up to date" : `${data.cards.pending_tasks} pending action`}</span>
           </div>
         </div>
       </div>
 
-      {/* 📚 Books of Accounts Dashboard Summary Cards (Accessible to Administrator) */}
-      {user?.role === 'Administrator' && (
-        <div>
-          <div className="flex items-center gap-2 mb-3.5">
-            <span className="text-lg">📚</span>
-            <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Books of Accounts Financial Overview</h2>
+      {/* 2. Books of Accounts Section: Large White Rounded Container */}
+      <div className="bg-white rounded-[22px] p-6 sm:p-7 border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] space-y-5">
+        {/* Title & Date Range Selector Header */}
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3.5 pb-2 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm">
+              <FiBookOpen className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                Books of Accounts Financial Overview
+              </h2>
+              <p className="text-xs text-slate-400">
+                Official accounting books, cash flow registers & balance reconciliation
+              </p>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {/* Total Cash In */}
-            <div className="bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100 shadow-xs flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-emerald-500 text-white shadow-xs">
-                <FiArrowDownLeft className="w-5 h-5" />
+
+          {/* Date-range selector on the upper-right */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-semibold bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-slate-700 transition-colors shadow-2xs cursor-pointer"
+            >
+              <FiCalendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{dateRange}</span>
+              <FiChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {/* Dropdown Options */}
+            {isDatePickerOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 py-2 text-xs divide-y divide-slate-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateRange("Jun 29, 2025 - Aug 29, 2025");
+                    setIsDatePickerOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center justify-between"
+                >
+                  <span>Jun 29, 2025 - Aug 29, 2025</span>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">Active</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateRange("Jul 01, 2025 - Jul 31, 2025");
+                    setIsDatePickerOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-slate-600 hover:bg-slate-50"
+                >
+                  July 2025 (Peak Harvest Period)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateRange("Jan 01, 2025 - Dec 31, 2025");
+                    setIsDatePickerOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-slate-600 hover:bg-slate-50"
+                >
+                  Full Fiscal Year 2025
+                </button>
               </div>
-              <div>
-                <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Total Cash In</p>
-                <h3 className="text-xl font-extrabold text-emerald-700 mt-0.5">₱ {(data.cards.total_cash_in || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+            )}
+          </div>
+        </div>
+
+        {/* Four Horizontally Arranged Financial Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* TOTAL CASH IN */}
+          <div className="bg-emerald-50/60 p-5 rounded-[18px] border border-emerald-100 shadow-2xs flex flex-col justify-between hover:border-emerald-200 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Total Cash In</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center shadow-xs">
+                <FiArrowDownLeft className="w-4 h-4" />
               </div>
             </div>
+            <div className="mt-3">
+              <h4 className="text-2xl font-extrabold text-emerald-700 tracking-tight">
+                ₱ {(data.cards.total_cash_in || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </h4>
+              <p className="text-[11px] text-emerald-600/80 font-medium mt-1">Cash Register & Official Receipts</p>
+            </div>
+          </div>
 
-            {/* Total Cash Out */}
-            <div className="bg-rose-50/50 p-5 rounded-2xl border border-rose-100 shadow-xs flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-rose-500 text-white shadow-xs">
-                <FiArrowUpRight className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-rose-800 uppercase tracking-wider">Total Cash Out</p>
-                <h3 className="text-xl font-extrabold text-rose-700 mt-0.5">₱ {(data.cards.total_cash_out || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+          {/* TOTAL CASH OUT */}
+          <div className="bg-rose-50/60 p-5 rounded-[18px] border border-rose-100 shadow-2xs flex flex-col justify-between hover:border-rose-200 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-rose-800 uppercase tracking-wider">Total Cash Out</span>
+              <div className="w-8 h-8 rounded-lg bg-rose-500 text-white flex items-center justify-center shadow-xs">
+                <FiArrowUpRight className="w-4 h-4" />
               </div>
             </div>
+            <div className="mt-3">
+              <h4 className="text-2xl font-extrabold text-rose-700 tracking-tight">
+                ₱ {(data.cards.total_cash_out || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </h4>
+              <p className="text-[11px] text-rose-600/80 font-medium mt-1">Disbursements & Cooperative Vouchers</p>
+            </div>
+          </div>
 
-            {/* Current Cash Balance */}
-            <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-md flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-slate-800 text-accent">
-                <FiCreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Cash Balance</p>
-                <h3 className="text-xl font-extrabold text-white mt-0.5">₱ {(data.cards.current_cash_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
+          {/* CURRENT CASH BALANCE */}
+          <div className="bg-[#0B2917] text-white p-5 rounded-[18px] border border-emerald-950 shadow-md flex flex-col justify-between relative overflow-hidden">
+            <div className="flex items-center justify-between relative z-10">
+              <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">Current Cash Balance</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-800/80 text-[#86EFAC] flex items-center justify-center shadow-xs border border-emerald-700/50">
+                <FiCreditCard className="w-4 h-4" />
               </div>
             </div>
+            <div className="mt-3 relative z-10">
+              <h4 className="text-2xl font-extrabold text-white tracking-tight">
+                ₱ {(data.cards.current_cash_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </h4>
+              <p className="text-[11px] text-emerald-300/80 font-medium mt-1">Net Cooperative Ledger Standing</p>
+            </div>
+            {/* Subtle background glow */}
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none"></div>
+          </div>
 
-            {/* Total Accounting Sales */}
-            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100 shadow-xs flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-blue-600 text-white shadow-xs">
-                <FiDollarSign className="w-5 h-5" />
+          {/* TOTAL ACCOUNTING SALES */}
+          <div className="bg-sky-50/60 p-5 rounded-[18px] border border-sky-100 shadow-2xs flex flex-col justify-between hover:border-sky-200 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-sky-800 uppercase tracking-wider">Total Accounting Sales</span>
+              <div className="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center shadow-xs">
+                <TbCurrencyPeso className="w-4 h-4" />
               </div>
-              <div>
-                <p className="text-xs font-bold text-blue-800 uppercase tracking-wider">Total Accounting Sales</p>
-                <h3 className="text-xl font-extrabold text-blue-700 mt-0.5">₱ {(data.cards.total_accounting_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</h3>
-              </div>
+            </div>
+            <div className="mt-3">
+              <h4 className="text-2xl font-extrabold text-sky-700 tracking-tight">
+                ₱ {(data.cards.total_accounting_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </h4>
+              <p className="text-[11px] text-sky-600/80 font-medium mt-1">Cash Register Sales Book Invoices</p>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Analytics Graph Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Production */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-800">Monthly Coconut Production Summary</h3>
-            <span className="text-[10px] uppercase font-bold text-primary bg-green-50 px-2 py-0.5 rounded-md">Past 6 months</span>
+      {/* 3. Charts Section: Two Large White Rounded Chart Cards Side-by-Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7">
+        {/* Left Chart: Monthly Coconut Production Summary */}
+        <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
+                Monthly Coconut Production Summary
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Kilograms harvested and delivered</p>
+            </div>
+            <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full">
+              Past 6 Months
+            </span>
           </div>
-          <div className="h-64 flex items-center justify-center">
+
+          <div className="h-72 w-full pt-4">
             <Bar
               data={productionChartData}
+              plugins={[productionFloatingBadgePlugin]}
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: "#0B2917",
+                    titleFont: { family: "Poppins", size: 12 },
+                    bodyFont: { family: "Poppins", size: 12 },
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                      label: (context) => ` ${(context.parsed.y ?? 0).toLocaleString()} kg`
+                    }
+                  }
+                },
                 scales: {
-                  y: { grid: { color: "#F1F5F9" }, ticks: { font: { family: "Poppins", size: 10 } } },
-                  x: { ticks: { font: { family: "Poppins", size: 10 } } }
+                  y: {
+                    max: Math.max(2000, ...(data.charts.production || [0])),
+                    grid: { color: "#F1F5F9" },
+                    ticks: {
+                      stepSize: 400,
+                      font: { family: "Poppins", size: 11 },
+                      color: "#94A3B8",
+                      callback: (value) => `${value} kg`
+                    }
+                  },
+                  x: {
+                    grid: { display: false },
+                    ticks: {
+                      font: { family: "Poppins", size: 11, weight: 500 },
+                      color: "#64748B"
+                    }
+                  }
                 }
               }}
             />
           </div>
         </div>
 
-        {/* Monthly Sales */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-800">Monthly Wholesale Copra Sales Performance</h3>
-            <span className="text-[10px] uppercase font-bold text-primary bg-green-50 px-2 py-0.5 rounded-md">Revenue (PHP)</span>
+        {/* Right Chart: Monthly Wholesale Copra Sales Performance */}
+        <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
+                Monthly Wholesale Copra Sales Performance
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Total wholesale revenue realization</p>
+            </div>
+            <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full">
+              Revenue (PHP)
+            </span>
           </div>
-          <div className="h-64 flex items-center justify-center">
+
+          <div className="h-72 w-full pt-4">
             <Line
               data={salesChartData}
+              plugins={[salesFloatingBadgePlugin]}
               options={{
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    backgroundColor: "#0B2917",
+                    titleFont: { family: "Poppins", size: 12 },
+                    bodyFont: { family: "Poppins", size: 12 },
+                    padding: 10,
+                    cornerRadius: 8,
+                    callbacks: {
+                      label: (context) => ` ₱ ${(context.parsed.y ?? 0).toLocaleString()}`
+                    }
+                  }
+                },
                 scales: {
-                  y: { grid: { color: "#F1F5F9" }, ticks: { font: { family: "Poppins", size: 10 } } },
-                  x: { ticks: { font: { family: "Poppins", size: 10 } } }
+                  y: {
+                    max: Math.max(12000, ...(data.charts.sales || [0])),
+                    grid: { color: "#F1F5F9" },
+                    ticks: {
+                      stepSize: 2500,
+                      font: { family: "Poppins", size: 11 },
+                      color: "#94A3B8",
+                      callback: (value) => `₱ ${value.toLocaleString()}`
+                    }
+                  },
+                  x: {
+                    grid: { display: false },
+                    ticks: {
+                      font: { family: "Poppins", size: 11, weight: 500 },
+                      color: "#64748B"
+                    }
+                  }
                 }
               }}
             />
@@ -347,32 +741,48 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Quick Statistics, Recent Accounting & System Activity Logs */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Statistics column */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
-          <h3 className="font-bold text-slate-800 flex items-center gap-2">
-            <FiTrendingUp className="text-primary w-5 h-5" />
+      {/* 4. Quick Statistics & Recent Accounting Transactions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-7">
+        {/* Quick Statistics Column */}
+        <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] space-y-5">
+          <h3 className="font-bold text-slate-900 flex items-center gap-2.5 text-base">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <FiTrendingUp className="w-4 h-4" />
+            </div>
             <span>Today's Quick Stats</span>
           </h3>
 
-          <div className="divide-y divide-slate-55 space-y-3.5">
-            <div className="pt-2">
-              <span className="text-xs font-semibold text-slate-400 block uppercase">Today's Production Input</span>
-              <span className="text-lg font-bold text-slate-800 mt-1 inline-block">{data.quick_stats.today_production_kg.toLocaleString()} kg</span>
+          <div className="divide-y divide-slate-100 space-y-4">
+            <div className="pt-1">
+              <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">
+                Today's Production Input
+              </span>
+              <span className="text-xl font-bold text-slate-900 mt-1 inline-block">
+                {data.quick_stats.today_production_kg.toLocaleString()} kg
+              </span>
             </div>
 
-            <div className="pt-3">
-              <span className="text-xs font-semibold text-slate-400 block uppercase">Today's Sales Revenue</span>
-              <span className="text-lg font-bold text-slate-800 mt-1 inline-block">₱ {data.quick_stats.today_sales_amount.toLocaleString()}</span>
+            <div className="pt-4">
+              <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">
+                Today's Sales Revenue
+              </span>
+              <span className="text-xl font-bold text-slate-900 mt-1 inline-block">
+                ₱ {data.quick_stats.today_sales_amount.toLocaleString()}
+              </span>
             </div>
 
-            <div className="pt-3">
-              <span className="text-xs font-semibold text-slate-400 block uppercase">Latest Registered Member</span>
+            <div className="pt-4">
+              <span className="text-xs font-semibold text-slate-400 block uppercase tracking-wider">
+                Latest Registered Member
+              </span>
               {data.quick_stats.latest_member ? (
-                <div className="mt-1">
-                  <span className="font-bold text-primary text-sm block">{data.quick_stats.latest_member.name}</span>
-                  <span className="text-[10px] text-slate-400 block">ID: {data.quick_stats.latest_member.code} | Date: {data.quick_stats.latest_member.date}</span>
+                <div className="mt-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="font-bold text-emerald-800 text-sm block">
+                    {data.quick_stats.latest_member.name}
+                  </span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    ID: {data.quick_stats.latest_member.code} · Date: {data.quick_stats.latest_member.date}
+                  </span>
                 </div>
               ) : (
                 <span className="text-xs text-slate-400 block mt-1">No member registered recently.</span>
@@ -382,33 +792,43 @@ const DashboardPage = () => {
         </div>
 
         {/* Recent Accounting Transactions Table Widget */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs lg:col-span-2 flex flex-col">
-          <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
-            <FiBookOpen className="text-primary w-5 h-5" />
-            <span>Recent Accounting Transactions</span>
-          </h3>
+        <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] lg:col-span-2 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2.5 text-base">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <FiBookOpen className="w-4 h-4" />
+              </div>
+              <span>Recent Accounting Transactions</span>
+            </h3>
+            <span className="text-[11px] font-medium text-slate-400">Live Entries</span>
+          </div>
 
           <div className="flex-1 overflow-x-auto">
             {data.recent_accounting_transactions && data.recent_accounting_transactions.length > 0 ? (
               <table className="min-w-full divide-y divide-slate-100 text-xs">
-                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase">
+                <thead className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider">
                   <tr>
-                    <th className="px-3 py-2 text-left">Type</th>
-                    <th className="px-3 py-2 text-left">Ref</th>
-                    <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Description</th>
-                    <th className="px-3 py-2 text-right">Amount (₱)</th>
+                    <th className="px-3.5 py-2.5 text-left rounded-l-lg">Type</th>
+                    <th className="px-3.5 py-2.5 text-left">Ref</th>
+                    <th className="px-3.5 py-2.5 text-left">Date</th>
+                    <th className="px-3.5 py-2.5 text-left">Description</th>
+                    <th className="px-3.5 py-2.5 text-right rounded-r-lg">Amount (₱)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {data.recent_accounting_transactions.map((tx, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="px-3 py-2.5 font-medium text-slate-500">{tx.type}</td>
-                      <td className="px-3 py-2.5 font-bold text-primary">{tx.reference}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">{tx.date}</td>
-                      <td className="px-3 py-2.5 truncate max-w-xs">{tx.description}</td>
-                      <td className={`px-3 py-2.5 text-right font-bold ${tx.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        ₱ {Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-3.5 py-3 font-medium text-slate-500">{tx.type}</td>
+                      <td className="px-3.5 py-3 font-bold text-emerald-700">{tx.reference}</td>
+                      <td className="px-3.5 py-3 whitespace-nowrap text-slate-500">{tx.date}</td>
+                      <td className="px-3.5 py-3 truncate max-w-xs">{tx.description}</td>
+                      <td
+                        className={`px-3.5 py-3 text-right font-bold ${
+                          tx.amount >= 0 ? "text-emerald-600" : "text-rose-600"
+                        }`}
+                      >
+                        {tx.amount < 0 ? "-" : ""}₱{" "}
+                        {Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                     </tr>
                   ))}
@@ -421,25 +841,32 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* System Activity Logs */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs flex flex-col">
-        <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
-          <FiActivity className="text-primary w-5 h-5" />
+      {/* 5. System Activity Logs */}
+      <div className="bg-white p-6 sm:p-7 rounded-[22px] border border-slate-200/80 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.03)] flex flex-col">
+        <h3 className="font-bold text-slate-900 flex items-center gap-2.5 mb-4 text-base">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <FiActivity className="w-4 h-4" />
+          </div>
           <span>System Audit & Activity Logs</span>
         </h3>
 
-        <div className="overflow-y-auto max-h-60 space-y-3.5 pr-2">
+        <div className="overflow-y-auto max-h-56 space-y-3 pr-2">
           {data.recent_activities.length > 0 ? (
             data.recent_activities.map((activity) => (
-              <div key={activity.id} className="flex gap-3 text-sm items-start bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs uppercase shrink-0">
+              <div
+                key={activity.id}
+                className="flex gap-3 text-sm items-start bg-slate-50/70 p-3 rounded-xl border border-slate-100 hover:bg-slate-100/60 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs uppercase shrink-0">
                   {activity.username.substring(0, 2)}
                 </div>
-                <div className="flex-1">
-                  <p className="text-slate-700 leading-tight">
-                    <span className="font-semibold text-slate-800">{activity.username}</span> {activity.action}
+                <div className="flex-1 min-w-0">
+                  <p className="text-slate-700 leading-snug">
+                    <span className="font-semibold text-slate-900">{activity.username}</span> {activity.action}
                   </p>
-                  <span className="text-[10px] text-slate-400 block mt-1">{activity.time_ago} ({activity.created_at})</span>
+                  <span className="text-[11px] text-slate-400 block mt-1">
+                    {activity.time_ago} ({activity.created_at})
+                  </span>
                 </div>
               </div>
             ))

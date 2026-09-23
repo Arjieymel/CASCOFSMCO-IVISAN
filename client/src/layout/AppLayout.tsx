@@ -6,31 +6,25 @@ import { HeaderProvider } from "../contexts/HeaderContext";
 
 const LayoutContent = () => {
   return (
-    <>
-      <div>
-        <AppSidebar />
-      </div>
-      <div>
-        <AppHeader />
-      </div>
-      <div className="pt-20 pl-0 sm:pl-64 min-h-screen">
-        <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-[var(--theme-bg-main)] transition-colors">
+      <AppSidebar />
+      <AppHeader />
+      <main className="pt-20 pl-0 sm:pl-64 min-h-screen bg-[var(--theme-bg-main)] transition-colors">
+        <div className="p-5 sm:p-7 lg:p-9 max-w-[1680px] mx-auto">
           <Outlet />
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 };
 
 const AppLayout = () => {
   return (
-    <>
-      <HeaderProvider>
-        <SidebarProvider>
-          <LayoutContent />
-        </SidebarProvider>
-      </HeaderProvider>
-    </>
+    <HeaderProvider>
+      <SidebarProvider>
+        <LayoutContent />
+      </SidebarProvider>
+    </HeaderProvider>
   );
 };
 

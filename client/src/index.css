@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
-:root {
+:root,
+[data-theme="cascofamco-green"] {
   --font-sans: 'Poppins', sans-serif;
   --theme-primary: #1F6B3D;
   --theme-primary-dark: #164e2c;
@@ -18,6 +19,23 @@
   --theme-link: #1F6B3D;
 }
 
+[data-theme="forest-green"] {
+  --font-sans: 'Poppins', sans-serif;
+  --theme-primary: #15803D;
+  --theme-primary-dark: #166534;
+  --theme-secondary: #22C55E;
+  --theme-secondary-dark: #15803D;
+  --theme-accent: #4ADE80;
+  --theme-sidebar-bg: #052E16;
+  --theme-sidebar-hover: #14532D;
+  --theme-bg-main: #F0FDF4;
+  --theme-navbar-bg: #FFFFFF;
+  --theme-card-bg: #FFFFFF;
+  --theme-card-text: #052E16;
+  --theme-table-header: #DCFCE7;
+  --theme-link: #15803D;
+}
+
 @theme {
   --font-sans: 'Poppins', sans-serif;
   --color-primary: var(--theme-primary);
@@ -26,6 +44,7 @@
   --color-secondary-dark: var(--theme-secondary-dark);
   --color-accent: var(--theme-accent);
   --color-dark-green: var(--theme-sidebar-bg);
+  --color-sidebar-bg: var(--theme-sidebar-bg);
   --color-sidebar-hover: var(--theme-sidebar-hover);
   --color-bg-main: var(--theme-bg-main);
   --color-navbar-bg: var(--theme-navbar-bg);
@@ -37,8 +56,8 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-bg-main);
-  color: var(--color-card-text);
+  background-color: var(--theme-bg-main);
+  color: var(--theme-card-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -48,65 +67,32 @@ body, aside, nav, header, main, div, table, th, td, button, input, select, texta
   transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
 }
 
+/* Themed Sidebar */
+aside#top-bar-sidebar {
+  background-color: var(--theme-sidebar-bg) !important;
+}
+
 /* Themed Table Header background override */
-thead {
-  background-color: var(--color-table-header);
+thead,
+thead th,
+thead tr {
+  background-color: var(--theme-table-header) !important;
 }
 
-/* Themed Light Mode subtle background tinting */
-:root:not(.dark) .bg-slate-50,
-:root:not(.dark) .bg-gray-50 {
-  background-color: var(--color-table-header);
+[data-theme="forest-green"] thead th {
+  color: #166534 !important;
 }
 
-/* Dark mode styles for Midnight Dark theme */
-.dark body {
-  background-color: var(--color-bg-main);
-  color: var(--color-card-text);
+[data-theme="cascofamco-green"] thead th {
+  color: #64748B !important;
 }
 
-.dark .bg-white {
-  background-color: var(--color-card-bg) !important;
-  color: var(--color-card-text) !important;
-  border-color: #334155 !important;
-}
-
-.dark .bg-slate-50,
-.dark .bg-gray-50 {
-  background-color: var(--color-table-header) !important;
-  color: var(--color-card-text) !important;
-}
-
-.dark .text-slate-800,
-.dark .text-slate-700,
-.dark .text-slate-600,
-.dark .text-gray-800,
-.dark .text-gray-700,
-.dark .text-gray-600 {
-  color: #F1F5F9 !important;
-}
-
-.dark .text-slate-500,
-.dark .text-slate-400,
-.dark .text-gray-500,
-.dark .text-gray-400 {
-  color: #94A3B8 !important;
-}
-
-.dark .border-slate-100,
-.dark .border-slate-200,
-.dark .border-slate-300,
-.dark .border-gray-100,
-.dark .border-gray-200 {
-  border-color: #334155 !important;
-}
-
-.dark input,
-.dark select,
-.dark textarea {
-  background-color: #0F172A !important;
-  color: #F8FAFC !important;
-  border-color: #334155 !important;
+/* Form input focus styles */
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--theme-primary) !important;
+  --tw-ring-color: var(--theme-primary) !important;
 }
 
 /* Scrollbar styles */

@@ -91,7 +91,7 @@ export interface SystemSettings {
   address: string;
   contact_number: string;
   email: string;
-  theme_mode: 'light' | 'dark';
+  theme_mode: string;
 }
 
 export interface ActivityLog {
@@ -163,6 +163,7 @@ export interface CashReceiptRecord {
   amount_received: number | string;
   recorded_by: string;
   user_id?: number | null;
+  payment_method?: string;
   remarks?: string | null;
   user?: User;
   created_at?: string;

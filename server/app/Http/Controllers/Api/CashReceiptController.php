@@ -30,6 +30,55 @@ class CashReceiptController extends Controller
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('receipt_date', [$request->start_date, $request->end_date]);
+        } elseif ($request->filled('start_date')) {
+            $query->where('receipt_date', '>=', $request->start_date);
+        } elseif ($request->filled('end_date')) {
+            $query->where('receipt_date', '<=', $request->end_date);
+        }
+
+        // Calculate accurate summary totals for all matching records before pagination
+        $totalsQuery = clone $query;
+        $allMatching = $totalsQuery->get(['amount_received', 'source_of_income', 'remarks']);
+
+        $totals = [
+            'cashOnHand' => 0.00,
+            'cashInBank' => 0.00,
+            'savingsDeposit' => 0.00,
+            'shareCapital' => 0.00,
+            'loanPayment' => 0.00,
+            'interestIncome' => 0.00,
+            'miscIncome' => 0.00,
+            'grandTotal' => 0.00,
+        ];
+
+        foreach ($allMatching as $r) {
+            $amt = (float)$r->amount_received;
+            $totals['grandTotal'] += $amt;
+
+            // Determine method
+            $method = 'Cash';
+            if ($r->remarks && preg_match('/^\[Method:\s*([^\]]+)\]/', $r->remarks, $m)) {
+                $method = trim($m[1]);
+            }
+            if (strcasecmp($method, 'Cash') === 0) {
+                $totals['cashOnHand'] += $amt;
+            } else {
+                $totals['cashInBank'] += $amt;
+            }
+
+            // Determine classification
+            $cls = trim(strtolower($r->source_of_income ?? ''));
+            if ($cls === 'savings deposit') {
+                $totals['savingsDeposit'] += $amt;
+            } elseif ($cls === 'share capital') {
+                $totals['shareCapital'] += $amt;
+            } elseif ($cls === 'loan payment') {
+                $totals['loanPayment'] += $amt;
+            } elseif ($cls === 'interest income') {
+                $totals['interestIncome'] += $amt;
+            } else {
+                $totals['miscIncome'] += $amt;
+            }
         }
 
         $sortColumn = $request->input('sort_by', 'receipt_date');
@@ -37,15 +86,18 @@ class CashReceiptController extends Controller
         $allowedSorts = ['id', 'or_number', 'receipt_date', 'received_from', 'source_of_income', 'amount_received', 'recorded_by'];
 
         if (in_array($sortColumn, $allowedSorts)) {
-            $query->orderBy($sortColumn, $sortDirection);
+            $query->orderBy($sortColumn, $sortDirection)->orderBy('id', 'desc');
         } else {
-            $query->orderBy('receipt_date', 'desc');
+            $query->orderBy('receipt_date', 'desc')->orderBy('id', 'desc');
         }
 
         $perPage = $request->input('per_page', 10);
-        $records = $query->paginate($perPage);
+        $paginated = $query->paginate($perPage);
 
-        return response()->json($records);
+        $response = $paginated->toArray();
+        $response['totals'] = $totals;
+
+        return response()->json($response);
     }
 
     public function store(StoreCashReceiptRequest $request)
@@ -54,26 +106,51 @@ class CashReceiptController extends Controller
 
         if (empty($data['or_number'])) {
             $year = Carbon::parse($data['receipt_date'])->year;
-            $latest = CashReceiptsJournal::where('or_number', 'like', "OR-{$year}-%")->orderBy('id', 'desc')->first();
-            $seq = 1;
-            if ($latest) {
-                $parts = explode('-', $latest->or_number);
-                $seq = ((int)end($parts)) + 1;
+            $allOrs = CashReceiptsJournal::where('or_number', 'like', "OR-{$year}-%")->pluck('or_number');
+            $maxSeq = 0;
+            foreach ($allOrs as $existingOr) {
+                $parts = explode('-', $existingOr);
+                $num = (int)end($parts);
+                if ($num > $maxSeq) {
+                    $maxSeq = $num;
+                }
             }
-            $data['or_number'] = sprintf("OR-%d-%04d", $year, $seq);
+            $seq = $maxSeq + 1;
+            do {
+                $candidate = sprintf("OR-%d-%04d", $year, $seq);
+                $exists = CashReceiptsJournal::where('or_number', $candidate)->exists();
+                if (!$exists) {
+                    break;
+                }
+                $seq++;
+            } while ($exists);
+
+            $data['or_number'] = $candidate;
         }
 
-        $data['user_id'] = $request->user()->id;
-        $data['recorded_by'] = $request->user()->username;
+        $method = $request->input('payment_method');
+        $rawRemarks = $data['remarks'] ?? '';
+        $cleanRemarks = trim(preg_replace('/^\[Method:\s*[^\]]+\]\s*/', '', $rawRemarks));
+        if ($method) {
+            $data['remarks'] = trim("[Method: {$method}] " . $cleanRemarks);
+        } elseif (!empty($cleanRemarks)) {
+            $data['remarks'] = $cleanRemarks;
+        }
+
+        $user = $request->user();
+        $data['user_id'] = $user ? $user->id : null;
+        $data['recorded_by'] = $user ? ($user->username ?? $user->name) : 'admin';
 
         $record = CashReceiptsJournal::create($data);
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Recorded Cash Receipt: OR {$record->or_number} from {$record->received_from} (Amount: ₱{$record->amount_received})",
-            'ip_address' => $request->ip()
-        ]);
+        if ($user) {
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'username' => $user->username ?? 'admin',
+                'action' => "Recorded Cash Receipt: OR {$record->or_number} from {$record->received_from} (Amount: ₱{$record->amount_received})",
+                'ip_address' => $request->ip()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Cash receipt recorded successfully',
@@ -101,14 +178,31 @@ class CashReceiptController extends Controller
         }
 
         $data = $request->validated();
+
+        if (empty($data['or_number'])) {
+            $data['or_number'] = $record->or_number;
+        }
+
+        $method = $request->input('payment_method');
+        $rawRemarks = $data['remarks'] ?? $record->remarks ?? '';
+        $cleanRemarks = trim(preg_replace('/^\[Method:\s*[^\]]+\]\s*/', '', $rawRemarks));
+        if ($method) {
+            $data['remarks'] = trim("[Method: {$method}] " . $cleanRemarks);
+        } elseif (!empty($cleanRemarks)) {
+            $data['remarks'] = $cleanRemarks;
+        }
+
         $record->update($data);
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Updated Cash Receipt OR: {$record->or_number}",
-            'ip_address' => $request->ip()
-        ]);
+        $user = $request->user();
+        if ($user) {
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'username' => $user->username ?? 'admin',
+                'action' => "Updated Cash Receipt OR: {$record->or_number}",
+                'ip_address' => $request->ip()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Cash receipt updated successfully',
@@ -127,12 +221,15 @@ class CashReceiptController extends Controller
         $or = $record->or_number;
         $record->delete();
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Deleted Cash Receipt OR: {$or}",
-            'ip_address' => $request->ip()
-        ]);
+        $user = $request->user();
+        if ($user) {
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'username' => $user->username ?? 'admin',
+                'action' => "Deleted Cash Receipt OR: {$or}",
+                'ip_address' => $request->ip()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Cash receipt record deleted successfully'

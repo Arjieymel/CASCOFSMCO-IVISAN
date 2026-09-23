@@ -47,6 +47,8 @@ export const AuthProvider: FC<{children: ReactNode}> = ({children}) => {
             );
         } finally {
             localStorage.removeItem('token');
+            localStorage.removeItem('remembered_username');
+            sessionStorage.removeItem('remembered_username');
             setUser(null);
         }
     };

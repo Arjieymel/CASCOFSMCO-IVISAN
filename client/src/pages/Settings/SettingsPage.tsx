@@ -48,8 +48,13 @@ const SettingsPage = () => {
       setAddress(s.address || "");
       setContactNumber(s.contact_number || "");
       setEmail(s.email || "");
-      if (s.theme_mode) {
+      const localSaved = localStorage.getItem("cascofamco_theme");
+      if (localSaved === "forest-green" || localSaved === "cascofamco-green") {
+        setTheme(localSaved);
+      } else if (s.theme_mode === "forest-green" || s.theme_mode === "cascofamco-green") {
         setTheme(s.theme_mode);
+      } else {
+        setTheme("cascofamco-green");
       }
       setCurrentLogoUrl(s.cooperative_logo || null);
     } catch (err) {

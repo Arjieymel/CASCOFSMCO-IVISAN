@@ -19,7 +19,6 @@ export interface ThemeDefinition {
   cardText: string;
   tableHeader: string;
   link: string;
-  isDark?: boolean;
 }
 
 export const THEMES: ThemeDefinition[] = [
@@ -42,24 +41,6 @@ export const THEMES: ThemeDefinition[] = [
     link: "#1F6B3D"
   },
   {
-    key: "ocean-blue",
-    name: "Ocean Blue",
-    emoji: "🌊",
-    primary: "#0284C7",
-    primaryDark: "#0369A1",
-    secondary: "#06B6D4",
-    secondaryDark: "#0891B2",
-    accent: "#38BDF8",
-    sidebarBg: "#0F172A",
-    sidebarHover: "#1E293B",
-    bgMain: "#F0F9FF",
-    navbarBg: "#FFFFFF",
-    cardBg: "#FFFFFF",
-    cardText: "#0F172A",
-    tableHeader: "#E0F2FE",
-    link: "#0284C7"
-  },
-  {
     key: "forest-green",
     name: "Forest Green",
     emoji: "🌲",
@@ -76,51 +57,14 @@ export const THEMES: ThemeDefinition[] = [
     cardText: "#052E16",
     tableHeader: "#DCFCE7",
     link: "#15803D"
-  },
-  {
-    key: "teal",
-    name: "Teal",
-    emoji: "🩵",
-    primary: "#0D9488",
-    primaryDark: "#0F766E",
-    secondary: "#14B8A6",
-    secondaryDark: "#115E59",
-    accent: "#5EEAD4",
-    sidebarBg: "#042F2C",
-    sidebarHover: "#134E4A",
-    bgMain: "#F0FDFA",
-    navbarBg: "#FFFFFF",
-    cardBg: "#FFFFFF",
-    cardText: "#042F2C",
-    tableHeader: "#CCFBF1",
-    link: "#0D9488"
-  },
-  {
-    key: "midnight-dark",
-    name: "Midnight Dark",
-    emoji: "⚫",
-    primary: "#10B981",
-    primaryDark: "#059669",
-    secondary: "#3B82F6",
-    secondaryDark: "#2563EB",
-    accent: "#34D399",
-    sidebarBg: "#0F172A",
-    sidebarHover: "#1E293B",
-    bgMain: "#0F172A",
-    navbarBg: "#1E293B",
-    cardBg: "#1E293B",
-    cardText: "#F8FAFC",
-    tableHeader: "#334155",
-    link: "#34D399",
-    isDark: true
   }
 ];
 
 export const getThemeByKey = (key: string): ThemeDefinition => {
   if (!key) return THEMES[0];
-  if (key === "light") return THEMES[0]; // cascofamco-green
-  if (key === "dark") return THEMES.find(t => t.key === "midnight-dark") || THEMES[4];
-  return THEMES.find(t => t.key === key) || THEMES[0];
+  if (key === "forest-green") return THEMES[1];
+  // Fallback to CASCOFAMCO Green (Default) if any deleted theme (ocean-blue, teal, midnight-dark, dark, light, etc.) was previously saved
+  return THEMES[0];
 };
 
 interface ThemeContextType {
@@ -148,12 +92,7 @@ export const applyThemeToDOM = (theme: ThemeDefinition) => {
   root.style.setProperty("--theme-table-header", theme.tableHeader);
   root.style.setProperty("--theme-link", theme.link);
 
-  if (theme.isDark) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-
+  root.classList.remove("dark");
   root.setAttribute("data-theme", theme.key);
 };
 
@@ -171,12 +110,21 @@ export const ThemeProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setThemeKeyState(theme.key);
     localStorage.setItem("cascofamco_theme", theme.key);
     applyThemeToDOM(theme);
+    if (user && user.role === "Administrator") {
+      const formData = new FormData();
+      formData.append("theme_mode", theme.key);
+      SettingService.updateSettings(formData).catch(() => {});
+    }
   };
 
-  // Sync initial theme to DOM immediately
+  // Sync initial theme to DOM immediately and sanitize localStorage if a deleted theme was saved
   useEffect(() => {
     applyThemeToDOM(currentTheme);
-  }, []);
+    const saved = localStorage.getItem("cascofamco_theme");
+    if (saved && saved !== currentTheme.key) {
+      localStorage.setItem("cascofamco_theme", currentTheme.key);
+    }
+  }, [currentTheme]);
 
   // Sync backend theme setting when user is logged in
   useEffect(() => {
@@ -185,10 +133,24 @@ export const ThemeProvider: FC<{ children: ReactNode }> = ({ children }) => {
         .then(res => {
           if (res.data && res.data.theme_mode) {
             const backendTheme = res.data.theme_mode;
-            const theme = getThemeByKey(backendTheme);
+            const savedLocal = localStorage.getItem("cascofamco_theme");
+            // If the user already has a valid saved theme in localStorage, keep it
+            const preferredKey =
+              savedLocal === "forest-green" || savedLocal === "cascofamco-green"
+                ? savedLocal
+                : (backendTheme === "forest-green" || backendTheme === "cascofamco-green" ? backendTheme : "cascofamco-green");
+
+            const theme = getThemeByKey(preferredKey);
             setThemeKeyState(theme.key);
             localStorage.setItem("cascofamco_theme", theme.key);
             applyThemeToDOM(theme);
+
+            // Sync backend if it had a different or stale setting
+            if (backendTheme !== theme.key && user.role === "Administrator") {
+              const formData = new FormData();
+              formData.append("theme_mode", theme.key);
+              SettingService.updateSettings(formData).catch(() => {});
+            }
           }
         })
         .catch(err => {

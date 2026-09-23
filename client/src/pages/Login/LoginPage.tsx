@@ -1,12 +1,10 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSettings } from "../../contexts/SettingContext";
 import { FiUser, FiLock, FiAlertCircle, FiPackage, FiEye, FiEyeOff } from "react-icons/fi";
 import Swal from "sweetalert2";
 import cascofamco from "../../assets/img/cascofamco.png";
-
-
 
 const LoginPage = () => {
   const { login, user } = useAuth();
@@ -19,6 +17,18 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const userInteractedRef = useRef<boolean>(false);
+
+  const handleUserInteraction = () => {
+    userInteractedRef.current = true;
+  };
+
+  const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
+    userInteractedRef.current = true;
+    setUsername(e.target.value);
+  };
 
   // Redirect if user is already logged in
   useEffect(() => {
@@ -40,12 +50,14 @@ const LoginPage = () => {
       setIsLoading(true);
       await login(username, password);
 
-      // Store remember me setting in local storage
+      // Store remember me preference without persisting sensitive username
       if (rememberMe) {
-        localStorage.setItem("remembered_username", username);
+        localStorage.setItem("remember_me_preference", "true");
       } else {
-        localStorage.removeItem("remembered_username");
+        localStorage.removeItem("remember_me_preference");
       }
+      localStorage.removeItem("remembered_username");
+      sessionStorage.removeItem("remembered_username");
 
       Swal.fire({
         title: "Welcome Back!",
@@ -83,13 +95,40 @@ const LoginPage = () => {
     });
   };
 
-  // Load remembered username on mount
+  // Ensure username field is completely empty on mount / refresh and purge stored credentials
   useEffect(() => {
-    const savedUsername = localStorage.getItem("remembered_username");
-    if (savedUsername) {
-      setUsername(savedUsername);
-      setRememberMe(true);
+    try {
+      localStorage.removeItem("remembered_username");
+      sessionStorage.removeItem("remembered_username");
+    } catch {
+      // ignore storage access restrictions if any
     }
+
+    setUsername("");
+    if (usernameInputRef.current) {
+      usernameInputRef.current.value = "";
+    }
+
+    // Clean up any delayed browser autofill attempts if the user has not physically typed
+    const clearIfAutofilled = () => {
+      if (!userInteractedRef.current) {
+        setUsername("");
+        if (usernameInputRef.current) {
+          usernameInputRef.current.value = "";
+        }
+      }
+    };
+
+    const timers = [
+      setTimeout(clearIfAutofilled, 50),
+      setTimeout(clearIfAutofilled, 150),
+      setTimeout(clearIfAutofilled, 300),
+      setTimeout(clearIfAutofilled, 500)
+    ];
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, []);
 
   return (
@@ -136,7 +175,24 @@ const LoginPage = () => {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} autoComplete="off" className="space-y-5">
+            {/* Decoy fields to intercept aggressive browser credential autofill */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "-9999px",
+                top: "-9999px",
+                opacity: 0,
+                height: 0,
+                width: 0,
+                pointerEvents: "none"
+              }}
+            >
+              <input type="text" name="fake_username_autofill" tabIndex={-1} autoComplete="off" defaultValue="" />
+              <input type="password" name="fake_password_autofill" tabIndex={-1} autoComplete="off" defaultValue="" />
+            </div>
+
             {/* Username Input */}
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Username</label>
@@ -145,9 +201,24 @@ const LoginPage = () => {
                   <FiUser className="w-5 h-5" />
                 </div>
                 <input
+                  ref={usernameInputRef}
                   type="text"
+                  name="login_username"
+                  id="login_username"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={handleUsernameChange}
+                  onKeyDown={handleUserInteraction}
+                  onKeyUp={handleUserInteraction}
+                  onPaste={handleUserInteraction}
+                  onMouseDown={handleUserInteraction}
                   className="block w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white focus:border-transparent text-sm transition-all duration-150"
                   placeholder="Enter username"
                   autoFocus
@@ -167,6 +238,13 @@ const LoginPage = () => {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
+                  name="login_password"
+                  id="login_password"
+                  autoComplete="new-password"
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  data-bwignore="true"
+                  data-form-type="other"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl bg-slate-50 placeholder-slate-400 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-white focus:border-transparent text-sm transition-all duration-150"
