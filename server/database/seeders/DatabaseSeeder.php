@@ -68,6 +68,12 @@ class DatabaseSeeder extends Seeder
             $year = rand(2022, 2026);
             $code = sprintf("MEM-%d-%04d", $year, $i);
             
+            $shares = rand(20, 100);
+            $par = 100.00;
+            $sub = $shares * $par;
+            $paid = round($sub * (rand(40, 100) / 100), 2);
+            $cbu = round(rand(500, 5000), 2);
+
             $members[] = Member::create([
                 'member_code' => $code,
                 'firstname' => $firstName,
@@ -80,6 +86,13 @@ class DatabaseSeeder extends Seeder
                 'membership_date' => Carbon::create($year, rand(1, 12), rand(1, 28))->format('Y-m-d'),
                 'status' => $faker->randomElement($statuses),
                 'profile_picture' => null,
+                'subscribed_shares' => $shares,
+                'share_par_value' => $par,
+                'subscribed_capital' => $sub,
+                'paid_up_capital' => $paid,
+                'cbu_balance' => $cbu,
+                'membership_fee_status' => 'Paid',
+                'membership_fee_amount' => 500.00,
             ]);
         }
 
@@ -192,6 +205,8 @@ class DatabaseSeeder extends Seeder
         Setting::setVal('contact_number', '+63 (036) 621-1234');
         Setting::setVal('email', 'cascofamco@gmail.com');
         Setting::setVal('theme_mode', 'light');
+        Setting::setVal('cbu_rate_per_kg', '0.50');
+        Setting::setVal('loan_eligibility_multiplier', '2.0');
 
         // 8. Create Activity Logs
         ActivityLog::create([

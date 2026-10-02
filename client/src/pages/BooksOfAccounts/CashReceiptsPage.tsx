@@ -72,10 +72,7 @@ const CashReceiptsPage = () => {
 
   const baseIncomeClassifications = [
     "Share Capital",
-    "Savings Deposit",
-    "Loan Payment",
-    "Interest Income",
-    "Miscellaneous Income"
+    "Loan Payment"
   ];
   const incomeClassificationOptions = baseIncomeClassifications.includes(sourceOfIncome)
     ? baseIncomeClassifications
@@ -299,11 +296,8 @@ const CashReceiptsPage = () => {
 
     let cashOnHand = 0;
     let cashInBank = 0;
-    let savingsDeposit = 0;
     let shareCapital = 0;
     let loanPayment = 0;
-    let interestIncome = 0;
-    let miscIncome = 0;
     let grandTotal = 0;
 
     records.forEach(r => {
@@ -322,16 +316,10 @@ const CashReceiptsPage = () => {
       }
 
       const cls = (r.source_of_income || "").trim().toLowerCase();
-      if (cls === "savings deposit") {
-        savingsDeposit += amt;
-      } else if (cls === "share capital") {
+      if (cls === "share capital") {
         shareCapital += amt;
       } else if (cls === "loan payment") {
         loanPayment += amt;
-      } else if (cls === "interest income") {
-        interestIncome += amt;
-      } else {
-        miscIncome += amt;
       }
 
       grandTotal += amt;
@@ -340,11 +328,8 @@ const CashReceiptsPage = () => {
     return {
       cashOnHand,
       cashInBank,
-      savingsDeposit,
       shareCapital,
       loanPayment,
-      interestIncome,
-      miscIncome,
       grandTotal
     };
   };
@@ -862,11 +847,8 @@ const CashReceiptsPage = () => {
                         <th className="px-3 py-3.5 text-right w-28 bg-emerald-500/5 text-emerald-800 font-extrabold">Cash in Bank</th>
                         
                         {/* Credit Columns */}
-                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold border-l border-slate-100">Savings Deposit</th>
-                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Share Capital</th>
+                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold border-l border-slate-100">Share Capital</th>
                         <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Loan Payment</th>
-                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Interest Income</th>
-                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Misc. Income</th>
                         
                         <th onClick={() => handleSort("amount_received")} className="px-3 py-3.5 text-right cursor-pointer hover:text-slate-700 w-28 font-black text-slate-800 border-l border-slate-100">
                           Total Amount {sortBy === "amount_received" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
@@ -893,17 +875,11 @@ const CashReceiptsPage = () => {
 
                           // Credit Mapping
                           const cls = (r.source_of_income || "").trim().toLowerCase();
-                          const isSavings = cls === "savings deposit";
                           const isCapital = cls === "share capital";
                           const isLoan = cls === "loan payment";
-                          const isInterest = cls === "interest income";
-                          const isMisc = !isSavings && !isCapital && !isLoan && !isInterest;
 
-                          const savingsVal = isSavings ? amt : 0;
                           const capitalVal = isCapital ? amt : 0;
                           const loanVal = isLoan ? amt : 0;
-                          const interestVal = isInterest ? amt : 0;
-                          const miscVal = isMisc ? amt : 0;
 
                           const formatCurrency = (val: number) => {
                             if (val === 0) return <span className="text-slate-300">—</span>;
@@ -930,11 +906,8 @@ const CashReceiptsPage = () => {
                               <td className="px-3 py-3.5 text-right bg-emerald-500/5 text-emerald-700">{formatCurrency(cashInBank)}</td>
                               
                               {/* Credit */}
-                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700 border-l border-slate-100">{formatCurrency(savingsVal)}</td>
-                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(capitalVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700 border-l border-slate-100">{formatCurrency(capitalVal)}</td>
                               <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(loanVal)}</td>
-                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(interestVal)}</td>
-                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(miscVal)}</td>
                               
                               {/* Total */}
                               <td className="px-3 py-3.5 text-right font-extrabold text-slate-900 bg-slate-50/20 border-l border-slate-150">
@@ -1022,14 +995,6 @@ const CashReceiptsPage = () => {
                 </span>
               </div>
 
-              {/* Total Savings Deposit */}
-              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
-                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Savings Deposits</span>
-                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
-                  ₱ {totals.savingsDeposit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-
               {/* Total Share Capital */}
               <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
                 <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Share Capital</span>
@@ -1043,22 +1008,6 @@ const CashReceiptsPage = () => {
                 <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Loan Payments</span>
                 <span className="text-sm font-extrabold text-blue-700 mt-1 block">
                   ₱ {totals.loanPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              {/* Total Interest Income */}
-              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
-                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Interest Income</span>
-                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
-                  ₱ {totals.interestIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-
-              {/* Total Miscellaneous Income */}
-              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
-                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Misc. Incomes</span>
-                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
-                  ₱ {totals.miscIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
 

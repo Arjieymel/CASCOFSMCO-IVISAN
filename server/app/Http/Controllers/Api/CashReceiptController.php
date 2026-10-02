@@ -43,11 +43,8 @@ class CashReceiptController extends Controller
         $totals = [
             'cashOnHand' => 0.00,
             'cashInBank' => 0.00,
-            'savingsDeposit' => 0.00,
             'shareCapital' => 0.00,
             'loanPayment' => 0.00,
-            'interestIncome' => 0.00,
-            'miscIncome' => 0.00,
             'grandTotal' => 0.00,
         ];
 
@@ -68,16 +65,10 @@ class CashReceiptController extends Controller
 
             // Determine classification
             $cls = trim(strtolower($r->source_of_income ?? ''));
-            if ($cls === 'savings deposit') {
-                $totals['savingsDeposit'] += $amt;
-            } elseif ($cls === 'share capital') {
+            if ($cls === 'share capital') {
                 $totals['shareCapital'] += $amt;
             } elseif ($cls === 'loan payment') {
                 $totals['loanPayment'] += $amt;
-            } elseif ($cls === 'interest income') {
-                $totals['interestIncome'] += $amt;
-            } else {
-                $totals['miscIncome'] += $amt;
             }
         }
 

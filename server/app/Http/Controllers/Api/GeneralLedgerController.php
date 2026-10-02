@@ -4,11 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\GeneralLedger;
-use App\Models\CashRegisterBook;
 use App\Models\CashDisbursementJournal;
-use App\Models\CashSalesBook;
 use App\Models\CashReceiptsJournal;
-use App\Models\JournalVoucher;
 use App\Models\ActivityLog;
 use App\Http\Requests\StoreGeneralLedgerRequest;
 use App\Http\Requests\UpdateGeneralLedgerRequest;
@@ -95,25 +92,7 @@ class GeneralLedgerController extends Controller
 
                 $entries = [];
 
-                // 1. Cash Register Books (Account 1010 - Cash on Hand)
-                $cashRegisters = CashRegisterBook::all();
-                foreach ($cashRegisters as $cr) {
-                    $entries[] = [
-                        'account_code' => '1010',
-                        'account_title' => 'Cash on Hand',
-                        'transaction_date' => $cr->date ? \Carbon\Carbon::parse($cr->date)->format('Y-m-d') : date('Y-m-d'),
-                        'reference_number' => $cr->reference_no ?? '',
-                        'debit' => (float)($cr->cash_in ?? 0),
-                        'credit' => (float)($cr->cash_out ?? 0),
-                        'running_balance' => (float)($cr->running_balance ?? 0),
-                        'source_module' => 'Cash Register',
-                        'description' => $cr->description ?? '',
-                        'created_at' => $cr->created_at,
-                        'updated_at' => $cr->updated_at,
-                    ];
-                }
-
-                // 2. Cash Disbursement Journals (Account 5010 - Operating Expenses / Cash Outflow)
+                // 1. Cash Disbursement Journals (Account 5010 - Operating Expenses / Cash Outflow)
                 $disbursements = CashDisbursementJournal::all();
                 foreach ($disbursements as $cd) {
                     $entries[] = [
@@ -131,25 +110,7 @@ class GeneralLedgerController extends Controller
                     ];
                 }
 
-                // 3. Cash Sales Books (Account 4010 - Sales Revenue)
-                $sales = CashSalesBook::all();
-                foreach ($sales as $sb) {
-                    $entries[] = [
-                        'account_code' => '4010',
-                        'account_title' => 'Cooperative Sales Revenue',
-                        'transaction_date' => $sb->sale_date ? \Carbon\Carbon::parse($sb->sale_date)->format('Y-m-d') : date('Y-m-d'),
-                        'reference_number' => $sb->invoice_number ?? '',
-                        'debit' => 0.00,
-                        'credit' => (float)($sb->total_amount ?? 0),
-                        'running_balance' => 0.00,
-                        'source_module' => 'Sales Book',
-                        'description' => "Customer: {$sb->customer} - {$sb->product} ({$sb->quantity} @ ₱{$sb->unit_price})",
-                        'created_at' => $sb->created_at,
-                        'updated_at' => $sb->updated_at,
-                    ];
-                }
-
-                // 4. Cash Receipts Journals (Account 1020 - Cash Receipts & Income)
+                // 2. Cash Receipts Journals (Account 1020 - Cash Receipts & Income)
                 $receipts = CashReceiptsJournal::all();
                 foreach ($receipts as $crj) {
                     $entries[] = [
@@ -164,24 +125,6 @@ class GeneralLedgerController extends Controller
                         'description' => "From: {$crj->received_from} - {$crj->description}",
                         'created_at' => $crj->created_at,
                         'updated_at' => $crj->updated_at,
-                    ];
-                }
-
-                // 5. Journal Vouchers (Account 3010 / Adjustment Accounts)
-                $vouchers = JournalVoucher::where('status', 'Posted')->orWhere('status', 'Approved')->get();
-                foreach ($vouchers as $jv) {
-                    $entries[] = [
-                        'account_code' => '3010',
-                        'account_title' => "Debit: {$jv->debit_account} / Credit: {$jv->credit_account}",
-                        'transaction_date' => $jv->voucher_date ? \Carbon\Carbon::parse($jv->voucher_date)->format('Y-m-d') : date('Y-m-d'),
-                        'reference_number' => $jv->voucher_number ?? '',
-                        'debit' => (float)($jv->amount ?? 0),
-                        'credit' => (float)($jv->amount ?? 0),
-                        'running_balance' => 0.00,
-                        'source_module' => 'Journal Voucher',
-                        'description' => $jv->description ?? '',
-                        'created_at' => $jv->created_at,
-                        'updated_at' => $jv->updated_at,
                     ];
                 }
 

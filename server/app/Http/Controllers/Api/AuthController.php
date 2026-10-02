@@ -74,7 +74,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $user = $request->user();
-        
+
         if ($user) {
             // Log the activity
             ActivityLog::create([
@@ -98,7 +98,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
-        
+
         return response()->json([
             'user' => [
                 'id' => $user->id,

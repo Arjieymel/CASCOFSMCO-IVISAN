@@ -11,6 +11,8 @@ import AdminOrStaffRoute from "./AdminOrStaffRoute";
 // ── Page Imports ──────────────────────────────────────────────────
 import DashboardPage from "../pages/Dashboard/DashboardPage";
 import MembersPage from "../pages/Members/MembersPage";
+import ShareCapitalPage from "../pages/ShareCapital/ShareCapitalPage";
+import LoansPage from "../pages/Loans/LoansPage";
 import ProductionsPage from "../pages/Productions/ProductionsPage";
 import SalesPage from "../pages/Sales/SalesPage";
 import TasksPage from "../pages/Tasks/TasksPage";
@@ -18,12 +20,9 @@ import ReportsPage from "../pages/Reports/ReportsPage";
 import UsersPage from "../pages/Users/UsersPage";
 import SettingsPage from "../pages/Settings/SettingsPage";
 
-// 📚 Books of Accounts Pages
-import CashRegisterPage from "../pages/BooksOfAccounts/CashRegisterPage";
+// 📚 Books of Accounts Pages (Active)
 import CashDisbursementPage from "../pages/BooksOfAccounts/CashDisbursementPage";
-import CashSalesBookPage from "../pages/BooksOfAccounts/CashSalesBookPage";
 import CashReceiptsPage from "../pages/BooksOfAccounts/CashReceiptsPage";
-import JournalVoucherPage from "../pages/BooksOfAccounts/JournalVoucherPage";
 import GeneralLedgerPage from "../pages/BooksOfAccounts/GeneralLedgerPage";
 
 const AppRoutes = () => {
@@ -46,6 +45,8 @@ const AppRoutes = () => {
               >
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/members" element={<MembersPage />} />
+                <Route path="/share-capital" element={<ShareCapitalPage />} />
+                <Route path="/loans" element={<LoansPage />} />
                 <Route path="/productions" element={<ProductionsPage />} />
                 <Route path="/sales" element={<SalesPage />} />
                 <Route path="/tasks" element={<TasksPage />} />
@@ -54,12 +55,9 @@ const AppRoutes = () => {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/setting" element={<Navigate to="/settings" replace />} />
 
-                {/* 📚 Books of Accounts Routes (Administrator & Staff) */}
-                <Route path="/books-of-accounts/cash-register" element={<AdminOrStaffRoute><CashRegisterPage /></AdminOrStaffRoute>} />
-                <Route path="/books-of-accounts/cash-disbursements" element={<AdminOrStaffRoute><CashDisbursementPage /></AdminOrStaffRoute>} />
-                <Route path="/books-of-accounts/sales-book" element={<AdminOrStaffRoute><CashSalesBookPage /></AdminOrStaffRoute>} />
+                {/* 📚 Books of Accounts Routes — Active Books Only */}
                 <Route path="/books-of-accounts/cash-receipts" element={<AdminOrStaffRoute><CashReceiptsPage /></AdminOrStaffRoute>} />
-                <Route path="/books-of-accounts/journal-vouchers" element={<AdminOrStaffRoute><JournalVoucherPage /></AdminOrStaffRoute>} />
+                <Route path="/books-of-accounts/cash-disbursements" element={<AdminOrStaffRoute><CashDisbursementPage /></AdminOrStaffRoute>} />
                 <Route path="/books-of-accounts/general-ledger" element={<AdminOrStaffRoute><GeneralLedgerPage /></AdminOrStaffRoute>} />
 
                 {/* Fallback — redirect unknown protected paths to dashboard */}

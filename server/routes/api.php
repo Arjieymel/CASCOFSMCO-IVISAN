@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\LoanController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\ProductionController;
 use App\Http\Controllers\Api\SaleController;
@@ -9,12 +10,10 @@ use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingController;
-use App\Http\Controllers\Api\CashRegisterController;
 use App\Http\Controllers\Api\CashDisbursementController;
-use App\Http\Controllers\Api\CashSalesBookController;
 use App\Http\Controllers\Api\CashReceiptController;
-use App\Http\Controllers\Api\JournalVoucherController;
 use App\Http\Controllers\Api\GeneralLedgerController;
+use App\Http\Controllers\Api\ShareCapitalController;
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -38,6 +37,33 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/members/{id}', [MemberController::class, 'update']);
     Route::put('/members/{id}', [MemberController::class, 'update']);
     Route::delete('/members/{id}', [MemberController::class, 'destroy']);
+
+    // Member Share Capital & Membership Fee
+    Route::get('/share-capital', [ShareCapitalController::class, 'index']);
+    Route::get('/share-capital/transactions', [ShareCapitalController::class, 'transactions']);
+    Route::get('/share-capital/member/{id}', [ShareCapitalController::class, 'memberLedger']);
+    Route::post('/share-capital/subscribe', [ShareCapitalController::class, 'subscribe']);
+    Route::post('/share-capital/contribute', [ShareCapitalController::class, 'contribute']);
+    Route::post('/share-capital/membership-fee', [ShareCapitalController::class, 'recordMembershipFee']);
+
+    // =========================================================================
+    // Loan Management & Eligibility
+    // =========================================================================
+    // Eligibility check (read — staff-facing widget)
+    Route::get('/loans/eligibility/{memberId}', [LoanController::class, 'eligibility']);
+
+    // Loan CRUD & workflow
+    Route::get('/loans', [LoanController::class, 'index']);
+    Route::post('/loans', [LoanController::class, 'store']);
+    Route::get('/loans/{id}', [LoanController::class, 'show']);
+    Route::post('/loans/{id}/approve', [LoanController::class, 'approve']);
+    Route::post('/loans/{id}/reject', [LoanController::class, 'reject']);
+    Route::post('/loans/{id}/release', [LoanController::class, 'release']);
+    Route::post('/loans/{id}/cancel', [LoanController::class, 'cancel']);
+
+    // Repayment tracking
+    Route::get('/loans/{id}/repayments', [LoanController::class, 'repayments']);
+    Route::post('/loans/{id}/repayments', [LoanController::class, 'recordRepayment']);
 
     // Productions
     Route::get('/productions', [ProductionController::class, 'index']);
@@ -83,12 +109,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // 📚 Books of Accounts (Administrator Only)
     // =========================================================================
     Route::middleware(EnsureAdmin::class)->prefix('books-of-accounts')->group(function () {
-        // Cash Register Book
-        Route::get('/cash-register', [CashRegisterController::class, 'index']);
-        Route::post('/cash-register', [CashRegisterController::class, 'store']);
-        Route::get('/cash-register/{id}', [CashRegisterController::class, 'show']);
-        Route::put('/cash-register/{id}', [CashRegisterController::class, 'update']);
-        Route::delete('/cash-register/{id}', [CashRegisterController::class, 'destroy']);
+        // ── Removed from active UI (routes preserved for data integrity) ─────
+        // Route::get('/cash-register', [CashRegisterController::class, 'index']);
+        // Route::post('/cash-register', [CashRegisterController::class, 'store']);
+        // Route::get('/cash-register/{id}', [CashRegisterController::class, 'show']);
+        // Route::put('/cash-register/{id}', [CashRegisterController::class, 'update']);
+        // Route::delete('/cash-register/{id}', [CashRegisterController::class, 'destroy']);
 
         // Cash Disbursement Journal
         Route::get('/cash-disbursements', [CashDisbursementController::class, 'index']);
@@ -97,12 +123,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/cash-disbursements/{id}', [CashDisbursementController::class, 'update']);
         Route::delete('/cash-disbursements/{id}', [CashDisbursementController::class, 'destroy']);
 
-        // Cash Register Sales Book
-        Route::get('/sales-book', [CashSalesBookController::class, 'index']);
-        Route::post('/sales-book', [CashSalesBookController::class, 'store']);
-        Route::get('/sales-book/{id}', [CashSalesBookController::class, 'show']);
-        Route::put('/sales-book/{id}', [CashSalesBookController::class, 'update']);
-        Route::delete('/sales-book/{id}', [CashSalesBookController::class, 'destroy']);
+        // ── Removed from active UI (routes preserved for data integrity) ─────
+        // Route::get('/sales-book', [CashSalesBookController::class, 'index']);
+        // Route::post('/sales-book', [CashSalesBookController::class, 'store']);
+        // Route::get('/sales-book/{id}', [CashSalesBookController::class, 'show']);
+        // Route::put('/sales-book/{id}', [CashSalesBookController::class, 'update']);
+        // Route::delete('/sales-book/{id}', [CashSalesBookController::class, 'destroy']);
 
         // Cash Receipts Journal
         Route::get('/cash-receipts', [CashReceiptController::class, 'index']);
@@ -111,12 +137,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/cash-receipts/{id}', [CashReceiptController::class, 'update']);
         Route::delete('/cash-receipts/{id}', [CashReceiptController::class, 'destroy']);
 
-        // Journal Voucher Register
-        Route::get('/journal-vouchers', [JournalVoucherController::class, 'index']);
-        Route::post('/journal-vouchers', [JournalVoucherController::class, 'store']);
-        Route::get('/journal-vouchers/{id}', [JournalVoucherController::class, 'show']);
-        Route::put('/journal-vouchers/{id}', [JournalVoucherController::class, 'update']);
-        Route::delete('/journal-vouchers/{id}', [JournalVoucherController::class, 'destroy']);
+        // ── Removed from active UI (routes preserved for data integrity) ─────
+        // Route::get('/journal-vouchers', [JournalVoucherController::class, 'index']);
+        // Route::post('/journal-vouchers', [JournalVoucherController::class, 'store']);
+        // Route::get('/journal-vouchers/{id}', [JournalVoucherController::class, 'show']);
+        // Route::put('/journal-vouchers/{id}', [JournalVoucherController::class, 'update']);
+        // Route::delete('/journal-vouchers/{id}', [JournalVoucherController::class, 'destroy']);
 
         // General Ledger
         Route::get('/general-ledger', [GeneralLedgerController::class, 'index']);

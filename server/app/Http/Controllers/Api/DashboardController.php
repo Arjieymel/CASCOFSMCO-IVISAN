@@ -8,11 +8,8 @@ use App\Models\Production;
 use App\Models\Sale;
 use App\Models\Task;
 use App\Models\ActivityLog;
-use App\Models\CashRegisterBook;
 use App\Models\CashDisbursementJournal;
-use App\Models\CashSalesBook;
 use App\Models\CashReceiptsJournal;
-use App\Models\JournalVoucher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -27,7 +24,7 @@ class DashboardController extends Controller
         // 1. Core counters
         $totalMembers = Member::count();
         $totalProduction = Production::whereIn('status', ['Completed', 'Approved'])->sum('quantity');
-        $totalSales = Sale::where('status', 'Paid')->sum('total_amount');
+        $totalSalesAmount = Sale::where('status', 'Paid')->sum('total_amount');
         
         // Auto mark overdue tasks first
         Task::where('status', '!=', 'Completed')
@@ -38,17 +35,17 @@ class DashboardController extends Controller
         $pendingTasks = Task::whereIn('status', ['Pending', 'In Progress'])->count();
 
         // 2. Books of Accounts Cards Metrics
-        $totalCashInRegister = CashRegisterBook::sum('cash_in');
-        $totalCashInReceipts = CashReceiptsJournal::sum('amount_received');
-        $totalCashIn = $totalCashInRegister + $totalCashInReceipts;
+        // Total Cash In: sourced exclusively from Cash Receipts Journal
+        $totalCashIn = CashReceiptsJournal::sum('amount_received');
 
-        $totalCashOutRegister = CashRegisterBook::sum('cash_out');
-        $totalCashOutDisbursements = CashDisbursementJournal::sum('amount');
-        $totalCashOut = $totalCashOutRegister + $totalCashOutDisbursements;
+        // Total Cash Out: sourced exclusively from Cash Disbursement Journal
+        $totalCashOut = CashDisbursementJournal::sum('amount');
 
+        // Current Cash Balance = Total Cash Receipts - Total Cash Disbursements
         $currentCashBalance = $totalCashIn - $totalCashOut;
 
-        $totalAccountingSales = CashSalesBook::sum('total_amount');
+        // Total Sales: sourced from the existing Sales Recording module (Sale model)
+        $totalSales = $totalSalesAmount;
 
         // 3. Today's Stats
         $todayProduction = Production::whereDate('production_date', Carbon::today())
@@ -105,17 +102,6 @@ class DashboardController extends Controller
         // 6. Recent Accounting Transactions
         $recentTransactions = collect();
 
-        CashRegisterBook::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
-            $recentTransactions->push([
-                'type' => 'Cash Register',
-                'reference' => $r->reference_no,
-                'date' => $r->date->format('Y-m-d'),
-                'description' => $r->description,
-                'amount' => (float)($r->cash_in > 0 ? $r->cash_in : -$r->cash_out),
-                'created_at' => $r->created_at->toDateTimeString()
-            ]);
-        });
-
         CashDisbursementJournal::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
             $recentTransactions->push([
                 'type' => 'Cash Disbursement',
@@ -123,17 +109,6 @@ class DashboardController extends Controller
                 'date' => $r->disbursement_date->format('Y-m-d'),
                 'description' => "Payee: {$r->payee} ({$r->expense_account})",
                 'amount' => -(float)$r->amount,
-                'created_at' => $r->created_at->toDateTimeString()
-            ]);
-        });
-
-        CashSalesBook::latest()->take(5)->get()->each(function($r) use ($recentTransactions) {
-            $recentTransactions->push([
-                'type' => 'Sales Book',
-                'reference' => $r->invoice_number,
-                'date' => $r->sale_date->format('Y-m-d'),
-                'description' => "Customer: {$r->customer} ({$r->product})",
-                'amount' => (float)$r->total_amount,
                 'created_at' => $r->created_at->toDateTimeString()
             ]);
         });
@@ -217,7 +192,7 @@ class DashboardController extends Controller
                 'total_cash_in' => round($totalCashIn, 2),
                 'total_cash_out' => round($totalCashOut, 2),
                 'current_cash_balance' => round($currentCashBalance, 2),
-                'total_accounting_sales' => round($totalAccountingSales, 2),
+                'total_sales' => round($totalSales, 2),
             ],
             'quick_stats' => [
                 'today_production_kg' => round($todayProduction, 2),

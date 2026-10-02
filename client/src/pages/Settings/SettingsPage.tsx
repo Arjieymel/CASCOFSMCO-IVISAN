@@ -24,6 +24,13 @@ const SettingsPage = () => {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
 
+  // Cooperative Policy & Financial Parameters
+  const [shareParValue, setShareParValue] = useState("");
+  const [defaultMembershipFee, setDefaultMembershipFee] = useState("");
+  const [minSubscribedShares, setMinSubscribedShares] = useState("");
+  const [minInitialPaidUp, setMinInitialPaidUp] = useState("");
+  const [cbuRatePerKg, setCbuRatePerKg] = useState("");
+
   // Change Password
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -48,6 +55,11 @@ const SettingsPage = () => {
       setAddress(s.address || "");
       setContactNumber(s.contact_number || "");
       setEmail(s.email || "");
+      setShareParValue(s.share_par_value !== null && s.share_par_value !== undefined ? String(s.share_par_value) : "");
+      setDefaultMembershipFee(s.default_membership_fee !== null && s.default_membership_fee !== undefined ? String(s.default_membership_fee) : "");
+      setMinSubscribedShares(s.min_subscribed_shares !== null && s.min_subscribed_shares !== undefined ? String(s.min_subscribed_shares) : "");
+      setMinInitialPaidUp(s.min_initial_paid_up !== null && s.min_initial_paid_up !== undefined ? String(s.min_initial_paid_up) : "");
+      setCbuRatePerKg(s.cbu_rate_per_kg !== null && s.cbu_rate_per_kg !== undefined ? String(s.cbu_rate_per_kg) : "");
       const localSaved = localStorage.getItem("cascofamco_theme");
       if (localSaved === "forest-green" || localSaved === "cascofamco-green") {
         setTheme(localSaved);
@@ -74,6 +86,11 @@ const SettingsPage = () => {
     formData.append("contact_number", contactNumber);
     formData.append("email", email);
     formData.append("theme_mode", themeKey);
+    formData.append("share_par_value", shareParValue);
+    formData.append("default_membership_fee", defaultMembershipFee);
+    formData.append("min_subscribed_shares", minSubscribedShares);
+    formData.append("min_initial_paid_up", minInitialPaidUp);
+    formData.append("cbu_rate_per_kg", cbuRatePerKg);
     if (logoFile) formData.append("cooperative_logo", logoFile);
     try {
       setSettingsSaving(true);
@@ -272,6 +289,98 @@ const SettingsPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Cooperative Policy & Financial Parameters */}
+            <div className="pt-4 border-t border-slate-100">
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Cooperative Policy & Financial Parameters
+              </h3>
+              <p className="text-[11px] text-slate-500 mb-3">
+                Configure baseline financial parameters confirmed with CASCOFAMCO policies. Rates are not hardcoded and can be adjusted here at any time.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Par Value per Share (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={shareParValue}
+                    onChange={(e) => setShareParValue(e.target.value)}
+                    placeholder="e.g. 100.00"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-[10px] text-slate-400">Baseline value per share</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Standard Membership Fee (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={defaultMembershipFee}
+                    onChange={(e) => setDefaultMembershipFee(e.target.value)}
+                    placeholder="e.g. 200.00"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-[10px] text-slate-400">Kept separate from share capital</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Min. Subscribed Shares
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={minSubscribedShares}
+                    onChange={(e) => setMinSubscribedShares(e.target.value)}
+                    placeholder="e.g. 50"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-[10px] text-slate-400">Minimum shares to subscribe</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    Min. Initial Paid-Up (₱)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={minInitialPaidUp}
+                    onChange={(e) => setMinInitialPaidUp(e.target.value)}
+                    placeholder="e.g. 1000.00"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-[10px] text-slate-400">Initial paid-up commitment</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
+                    CBU Rate (₱/kg)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={cbuRatePerKg}
+                    onChange={(e) => setCbuRatePerKg(e.target.value)}
+                    placeholder="e.g. 0.50"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-[10px] text-slate-400">Rate deducted from production</span>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Cooperative Logo</label>
               {currentLogoUrl && (

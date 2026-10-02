@@ -25,7 +25,13 @@ class SettingController extends Controller
             'address' => Setting::getVal('address', 'Roxas City, Capiz, Philippines'),
             'contact_number' => Setting::getVal('contact_number', '+63 912 345 6789'),
             'email' => Setting::getVal('email', 'info@cascofamco.com'),
-            'theme_mode' => Setting::getVal('theme_mode', 'cascofamco-green')
+            'theme_mode' => Setting::getVal('theme_mode', 'cascofamco-green'),
+            'share_par_value' => Setting::getVal('share_par_value', ''),
+            'default_membership_fee' => Setting::getVal('default_membership_fee', ''),
+            'min_subscribed_shares' => Setting::getVal('min_subscribed_shares', ''),
+            'min_initial_paid_up' => Setting::getVal('min_initial_paid_up', ''),
+            'cbu_rate_per_kg' => Setting::getVal('cbu_rate_per_kg', '0.50'),
+            'loan_eligibility_multiplier' => Setting::getVal('loan_eligibility_multiplier', '2.0'),
         ];
 
         return response()->json($settings);
@@ -42,7 +48,13 @@ class SettingController extends Controller
             'contact_number' => 'sometimes|string|max:50',
             'email' => 'sometimes|email|max:100',
             'theme_mode' => 'sometimes|string|max:50',
-            'cooperative_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048' // 2MB logo limit
+            'cooperative_logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048', // 2MB logo limit
+            'share_par_value' => 'nullable|numeric|min:0',
+            'default_membership_fee' => 'nullable|numeric|min:0',
+            'min_subscribed_shares' => 'nullable|numeric|min:0',
+            'min_initial_paid_up' => 'nullable|numeric|min:0',
+            'cbu_rate_per_kg' => 'nullable|numeric|min:0',
+            'loan_eligibility_multiplier' => 'nullable|numeric|min:0',
         ]);
 
         if ($request->has('cooperative_name')) {
@@ -59,6 +71,24 @@ class SettingController extends Controller
         }
         if ($request->has('theme_mode')) {
             Setting::setVal('theme_mode', $request->theme_mode);
+        }
+        if ($request->has('share_par_value')) {
+            Setting::setVal('share_par_value', $request->share_par_value);
+        }
+        if ($request->has('default_membership_fee')) {
+            Setting::setVal('default_membership_fee', $request->default_membership_fee);
+        }
+        if ($request->has('min_subscribed_shares')) {
+            Setting::setVal('min_subscribed_shares', $request->min_subscribed_shares);
+        }
+        if ($request->has('min_initial_paid_up')) {
+            Setting::setVal('min_initial_paid_up', $request->min_initial_paid_up);
+        }
+        if ($request->has('cbu_rate_per_kg')) {
+            Setting::setVal('cbu_rate_per_kg', $request->cbu_rate_per_kg);
+        }
+        if ($request->has('loan_eligibility_multiplier')) {
+            Setting::setVal('loan_eligibility_multiplier', $request->loan_eligibility_multiplier);
         }
 
         if ($request->hasFile('cooperative_logo')) {

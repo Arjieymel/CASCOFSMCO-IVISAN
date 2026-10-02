@@ -53,7 +53,7 @@ interface DashboardData {
     total_cash_in?: number;
     total_cash_out?: number;
     current_cash_balance?: number;
-    total_accounting_sales?: number;
+    total_sales?: number;
   };
   quick_stats: {
     today_production_kg: number;
@@ -493,10 +493,10 @@ const DashboardPage = () => {
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Books of Accounts Financial Overview
+                Financial Overview
               </h2>
               <p className="text-xs text-slate-400">
-                Official accounting books, cash flow registers & balance reconciliation
+                Summary of cash receipts, disbursements, and accounting balances
               </p>
             </div>
           </div>
@@ -566,7 +566,7 @@ const DashboardPage = () => {
               <h4 className="text-2xl font-extrabold text-emerald-700 tracking-tight">
                 ₱ {(data.cards.total_cash_in || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </h4>
-              <p className="text-[11px] text-emerald-600/80 font-medium mt-1">Cash Register & Official Receipts</p>
+              <p className="text-[11px] text-emerald-600/80 font-medium mt-1">Cash Receipts</p>
             </div>
           </div>
 
@@ -582,7 +582,7 @@ const DashboardPage = () => {
               <h4 className="text-2xl font-extrabold text-rose-700 tracking-tight">
                 ₱ {(data.cards.total_cash_out || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </h4>
-              <p className="text-[11px] text-rose-600/80 font-medium mt-1">Disbursements & Cooperative Vouchers</p>
+              <p className="text-[11px] text-rose-600/80 font-medium mt-1">Cash Disbursements</p>
             </div>
           </div>
 
@@ -604,19 +604,19 @@ const DashboardPage = () => {
             <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none"></div>
           </div>
 
-          {/* TOTAL ACCOUNTING SALES */}
+          {/* TOTAL SALES */}
           <div className="bg-sky-50/60 p-5 rounded-[18px] border border-sky-100 shadow-2xs flex flex-col justify-between hover:border-sky-200 transition-all">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-sky-800 uppercase tracking-wider">Total Accounting Sales</span>
+              <span className="text-xs font-bold text-sky-800 uppercase tracking-wider">Total Sales</span>
               <div className="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center shadow-xs">
                 <TbCurrencyPeso className="w-4 h-4" />
               </div>
             </div>
             <div className="mt-3">
               <h4 className="text-2xl font-extrabold text-sky-700 tracking-tight">
-                ₱ {(data.cards.total_accounting_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                ₱ {(data.cards.total_sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </h4>
-              <p className="text-[11px] text-sky-600/80 font-medium mt-1">Cash Register Sales Book Invoices</p>
+              <p className="text-[11px] text-sky-600/80 font-medium mt-1">Sales Recording Module</p>
             </div>
           </div>
         </div>

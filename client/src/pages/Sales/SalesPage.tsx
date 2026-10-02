@@ -39,9 +39,9 @@ const SalesPage = () => {
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const productList = ["Copra", "Coconut Oil", "Desiccated Coconut", "Charcoal", "Coir Fiber"];
+  const productList = ["Coconut Oil", "Desiccated Coconut", "Charcoal", "Coir Fiber"];
   const paymentMethodsList = ["Cash", "GCash", "Bank Transfer", "Check"];
-  const statusesList = ["Paid", "Pending", "Cancelled"];
+  const statusesList = ["Paid", "Cancelled"];
 
   const fetchSales = async (page: number = 1) => {
     try {
@@ -221,7 +221,7 @@ const SalesPage = () => {
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
           <SearchBar value={search} onChange={setSearch} placeholder="Search by invoice no, buyer, product..." />
-          
+
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <select
               value={paymentFilter}
@@ -321,11 +321,10 @@ const SalesPage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          sale.status === 'Paid' ? 'bg-green-50 text-green-700 border border-green-150' :
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${sale.status === 'Paid' ? 'bg-green-50 text-green-700 border border-green-150' :
                           sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border border-amber-150' :
-                          'bg-red-50 text-red-750 border border-red-150'
-                        }`}>
+                            'bg-red-50 text-red-750 border border-red-150'
+                          }`}>
                           {sale.status}
                         </span>
                       </td>
