@@ -496,6 +496,8 @@ class LoanController extends Controller
                               . " | Voucher: {$voucherNo}",
                 'ip_address' => $request->ip(),
             ]);
+
+            \App\Services\AccountingService::syncGeneralLedger();
         });
 
         return response()->json([
@@ -605,12 +607,17 @@ class LoanController extends Controller
             $newOutstanding = max(0.00, round($outstanding - $amountPaid, 2));
 
             // Breakdown principal/interest
-            $principalPaid = $request->filled('principal_paid')
-                ? (float) $request->principal_paid
-                : $amountPaid;  // If not broken down, treat all as principal
-            $interestPaid  = $request->filled('interest_paid')
+            $interestPaid = $request->filled('interest_paid')
                 ? (float) $request->interest_paid
                 : 0.00;
+            $principalPaid = $request->filled('principal_paid')
+                ? (float) $request->principal_paid
+                : max(0.00, round($amountPaid - $interestPaid, 2));
+
+            // Ensure principal + interest equals amount_paid exactly
+            if (abs(($principalPaid + $interestPaid) - $amountPaid) > 0.01) {
+                $principalPaid = max(0.00, round($amountPaid - $interestPaid, 2));
+            }
 
             // 3. Create repayment record
             $repayment = LoanRepayment::create([
@@ -648,6 +655,8 @@ class LoanController extends Controller
                               . " | OR: {$orNumber}",
                 'ip_address' => $request->ip(),
             ]);
+
+            \App\Services\AccountingService::syncGeneralLedger();
         });
 
         return response()->json([

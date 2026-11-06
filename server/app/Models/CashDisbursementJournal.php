@@ -20,6 +20,7 @@ class CashDisbursementJournal extends Model
         'payment_method',
         'approved_by',
         'user_id',
+        'production_id',
         'remarks',
     ];
 
@@ -31,5 +32,10 @@ class CashDisbursementJournal extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function production(): BelongsTo
+    {
+        return $this->belongsTo(Production::class, 'production_id');
     }
 }

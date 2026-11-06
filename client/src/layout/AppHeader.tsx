@@ -65,19 +65,6 @@ const AppHeader = () => {
             <FiMenu className="w-6 h-6" />
           </button>
 
-          {/* Large rounded search field */}
-          <div className="relative w-full max-w-sm sm:max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-              <FiSearch className="w-4 h-4" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search here…"
-              className="w-full pl-11 pr-4 py-2.5 bg-slate-50/90 hover:bg-slate-100/70 focus:bg-white text-sm text-slate-700 placeholder-slate-400 rounded-full border border-slate-200/90 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
-            />
-          </div>
         </div>
 
         {/* Right Side: Role Badge & Admin Avatar with Dropdown */}
@@ -114,9 +101,8 @@ const AppHeader = () => {
 
             {/* Profile Dropdown Menu */}
             <div
-              className={`absolute right-0 mt-2.5 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-xl divide-y divide-slate-100 z-50 transition-all duration-200 transform origin-top-right ${
-                isOpen ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
-              }`}
+              className={`absolute right-0 mt-2.5 w-56 bg-white border border-slate-200/80 rounded-2xl shadow-xl divide-y divide-slate-100 z-50 transition-all duration-200 transform origin-top-right ${isOpen ? "scale-100 opacity-100 pointer-events-auto" : "scale-95 opacity-0 pointer-events-none"
+                }`}
               id="dropdown-user"
             >
               <div className="px-4 py-3.5">

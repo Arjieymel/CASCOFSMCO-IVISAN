@@ -4,7 +4,8 @@ import type { Sale } from "../../Interfaces";
 import SearchBar from "../../components/SearchBar";
 import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
-import { FiPlus, FiEdit, FiTrash2, FiCalendar } from "react-icons/fi";
+import { FiPlus, FiEdit, FiTrash2, FiCalendar, FiCreditCard, FiCheckCircle, FiInfo } from "react-icons/fi";
+import { TbCurrencyPeso } from "react-icons/tb";
 import Swal from "sweetalert2";
 
 const SalesPage = () => {
@@ -25,6 +26,16 @@ const SalesPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
 
+  // Collect Payment Modal States
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  const [paySale, setPaySale] = useState<Sale | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payDate, setPayDate] = useState("");
+  const [payMethod, setPayMethod] = useState("Cash");
+  const [payRemarks, setPayRemarks] = useState("");
+  const [payErrors, setPayErrors] = useState<any>({});
+  const [payLoading, setPayLoading] = useState(false);
+
   // Form Fields
   const [buyer, setBuyer] = useState("");
   const [product, setProduct] = useState("Copra");
@@ -35,13 +46,15 @@ const SalesPage = () => {
   const [remarks, setRemarks] = useState("");
   const [status, setStatus] = useState("Paid");
   const [saleDate, setSaleDate] = useState("");
+  const [amountReceived, setAmountReceived] = useState("");
+  const [isPartialPayment, setIsPartialPayment] = useState(false);
 
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const productList = ["Coconut Oil", "Desiccated Coconut", "Charcoal", "Coir Fiber"];
   const paymentMethodsList = ["Cash", "GCash", "Bank Transfer", "Check"];
-  const statusesList = ["Paid", "Cancelled"];
+  const statusesList = ["Paid", "Pending", "Cancelled"];
 
   const fetchSales = async (page: number = 1) => {
     try {
@@ -79,8 +92,50 @@ const SalesPage = () => {
     setRemarks("");
     setStatus("Paid");
     setSaleDate(new Date().toISOString().split("T")[0]);
+    setAmountReceived("");
+    setIsPartialPayment(false);
     setFormErrors({});
     setIsAddModalOpen(true);
+  };
+
+  const openPayModal = (s: Sale) => {
+    setPaySale(s);
+    const rem = s.remaining_balance !== undefined && s.remaining_balance !== null
+      ? parseFloat(s.remaining_balance.toString())
+      : (s.status === 'Paid' ? 0 : parseFloat(s.total_amount.toString()));
+    setPayAmount(rem > 0 ? rem.toFixed(2) : "");
+    setPayDate(new Date().toISOString().split("T")[0]);
+    setPayMethod(s.payment_method || "Cash");
+    setPayRemarks("");
+    setPayErrors({});
+    setIsPayModalOpen(true);
+  };
+
+  const handleCollectPayment = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!paySale) return;
+    setPayErrors({});
+
+    try {
+      setPayLoading(true);
+      await SaleService.collectPayment(paySale.id, {
+        payment_amount: parseFloat(payAmount),
+        payment_date: payDate,
+        payment_method: payMethod,
+        remarks: payRemarks,
+      });
+      setIsPayModalOpen(false);
+      Swal.fire("Payment Collected", "Payment collected successfully and recorded in Cash Receipts Journal.", "success");
+      fetchSales(currentPage);
+    } catch (err: any) {
+      if (err.response && err.response.status === 422) {
+        setPayErrors(err.response.data.errors || { general: [err.response.data.message] });
+      } else {
+        Swal.fire("Error", err.response?.data?.message || "Failed to collect payment.", "error");
+      }
+    } finally {
+      setPayLoading(false);
+    }
   };
 
   const openEditModal = (s: Sale) => {
@@ -103,17 +158,25 @@ const SalesPage = () => {
     e.preventDefault();
     setFormErrors({});
 
-    const payload = {
+    const q = parseFloat(quantity);
+    const p = parseFloat(unitPrice);
+    const calcTotal = !isNaN(q) && !isNaN(p) ? q * p : 0;
+
+    const payload: any = {
       buyer,
       product,
-      quantity: parseFloat(quantity),
+      quantity: q,
       unit,
-      unit_price: parseFloat(unitPrice),
+      unit_price: p,
       payment_method: paymentMethod,
       remarks,
       status,
       sale_date: saleDate
     };
+
+    if (isPartialPayment && amountReceived) {
+      payload.amount_received = parseFloat(amountReceived);
+    }
 
     try {
       setSubmitLoading(true);
@@ -313,7 +376,27 @@ const SalesPage = () => {
                       <td className="px-6 py-4">{sale.product}</td>
                       <td className="px-6 py-4">{parseFloat(sale.quantity.toString()).toLocaleString()} {sale.unit}</td>
                       <td className="px-6 py-4">₱ {parseFloat(sale.unit_price.toString()).toFixed(2)}</td>
-                      <td className="px-6 py-4 font-bold text-primary">₱ {parseFloat(sale.total_amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-primary">₱ {parseFloat(sale.total_amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                        {sale.status === 'Paid' && (
+                          <div className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
+                            <FiCheckCircle className="w-3 h-3" />
+                            <span>Fully Paid</span>
+                          </div>
+                        )}
+                        {sale.status === 'Partially Paid' && (
+                          <div className="text-[11px] font-medium text-sky-600 mt-0.5">
+                            ₱ {parseFloat((sale.paid_amount || 0).toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })} paid
+                            <span className="text-amber-600 ml-1 font-semibold">(Bal: ₱ {parseFloat((sale.remaining_balance || 0).toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                          </div>
+                        )}
+                        {(sale.status === 'Pending' || sale.status === 'Credit') && (
+                          <div className="text-[11px] font-semibold text-amber-600 flex items-center gap-1 mt-0.5">
+                            <FiCreditCard className="w-3 h-3" />
+                            <span>Unpaid Credit</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
                         <span className="inline-flex items-center gap-1.5 font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span>
@@ -321,15 +404,27 @@ const SalesPage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${sale.status === 'Paid' ? 'bg-green-50 text-green-700 border border-green-150' :
-                          sale.status === 'Pending' ? 'bg-amber-50 text-amber-700 border border-amber-150' :
-                            'bg-red-50 text-red-750 border border-red-150'
-                          }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          sale.status === 'Paid' ? 'bg-green-50 text-green-700 border border-green-150' :
+                          sale.status === 'Partially Paid' ? 'bg-sky-50 text-sky-700 border border-sky-150' :
+                          (sale.status === 'Pending' || sale.status === 'Credit') ? 'bg-amber-50 text-amber-700 border border-amber-150' :
+                          'bg-red-50 text-red-750 border border-red-150'
+                        }`}>
                           {sale.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex justify-center items-center gap-2">
+                          {(sale.status === 'Pending' || sale.status === 'Credit' || sale.status === 'Partially Paid' || (sale.remaining_balance !== undefined && parseFloat(sale.remaining_balance.toString()) > 0.005)) && (
+                            <button
+                              onClick={() => openPayModal(sale)}
+                              title="Collect Payment"
+                              className="px-2 py-1 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer flex items-center gap-1 text-xs font-semibold shadow-2xs transition"
+                            >
+                              <TbCurrencyPeso className="w-3.5 h-3.5" />
+                              <span>Collect</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => openEditModal(sale)}
                             title="Edit Invoice"
@@ -484,6 +579,57 @@ const SalesPage = () => {
               <span className="font-semibold text-slate-500 uppercase text-xs">Auto Calculated Invoice Total:</span>
               <span className="font-bold text-primary text-lg">₱ {computedTotal()}</span>
             </div>
+
+            {/* Payment & Cash Balance Integration Details */}
+            {status === 'Paid' ? (
+              <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
+                <FiCheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>Paid in full. This will immediately update the <strong>{paymentMethod === 'Cash' ? 'Cash on Hand' : 'Cash in Bank'}</strong> balance and record an entry in the Cash Receipts Journal.</span>
+              </div>
+            ) : status === 'Pending' ? (
+              <div className="space-y-3">
+                <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+                  <FiCreditCard className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>Credit Sale (Pending). Cash balance will <strong>not</strong> increase until payment is collected.</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="partialPaymentCheck"
+                    checked={isPartialPayment}
+                    onChange={(e) => {
+                      setIsPartialPayment(e.target.checked);
+                      if (!e.target.checked) setAmountReceived("");
+                    }}
+                    className="rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                  />
+                  <label htmlFor="partialPaymentCheck" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                    Record partial downpayment now
+                  </label>
+                </div>
+
+                {isPartialPayment && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Downpayment Received Amount (PHP)</label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm pointer-events-none">₱</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        value={amountReceived}
+                        onChange={(e) => setAmountReceived(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-1">Only this amount will be added to the Cash Receipts Journal and cash balance.</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Remarks</label>
@@ -660,6 +806,119 @@ const SalesPage = () => {
                 className="px-5 py-2 text-sm font-semibold bg-primary hover:bg-primary-dark text-white rounded-xl shadow-md transition cursor-pointer disabled:opacity-50"
               >
                 {submitLoading ? "Updating..." : "Update Transaction"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* COLLECT PAYMENT MODAL */}
+      <Modal isOpen={isPayModalOpen} onClose={() => setIsPayModalOpen(false)} showCloseButton={true}>
+        <div className="p-2 space-y-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Collect Sales Payment</h3>
+            <p className="text-xs text-slate-500">Record payment received for Invoice: <span className="font-semibold text-primary">{paySale?.invoice_no}</span></p>
+          </div>
+
+          {paySale && (
+            <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+              <div>
+                <span className="text-slate-400 block font-medium">Buyer:</span>
+                <span className="font-semibold text-slate-700 truncate block">{paySale.buyer}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Total Amount:</span>
+                <span className="font-bold text-primary">₱ {parseFloat(paySale.total_amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-medium">Remaining Balance:</span>
+                <span className="font-bold text-amber-600">
+                  ₱ {parseFloat((paySale.remaining_balance !== undefined && paySale.remaining_balance !== null ? paySale.remaining_balance : paySale.total_amount).toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleCollectPayment} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Payment Amount (PHP)</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm pointer-events-none">₱</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  min="0.01"
+                  max={paySale ? parseFloat((paySale.remaining_balance !== undefined && paySale.remaining_balance !== null ? paySale.remaining_balance : paySale.total_amount).toString()) : undefined}
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              {payErrors.payment_amount && <p className="text-red-550 text-xs mt-1">{payErrors.payment_amount[0]}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Payment Date</label>
+                <input
+                  type="date"
+                  required
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {payErrors.payment_date && <p className="text-red-550 text-xs mt-1">{payErrors.payment_date[0]}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Payment Method</label>
+                <select
+                  value={payMethod}
+                  onChange={(e) => setPayMethod(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {paymentMethodsList.map(method => (
+                    <option key={method} value={method}>{method}</option>
+                  ))}
+                </select>
+                {payErrors.payment_method && <p className="text-red-550 text-xs mt-1">{payErrors.payment_method[0]}</p>}
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl text-xs text-emerald-800 flex items-start gap-2">
+              <FiCheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <span>This collected amount will immediately increase the <strong>{payMethod === 'Cash' ? 'Cash on Hand' : 'Cash in Bank'}</strong> balance and create an official Cash Receipts Journal record.</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Remarks</label>
+              <textarea
+                value={payRemarks}
+                onChange={(e) => setPayRemarks(e.target.value)}
+                placeholder="Remarks regarding check number, bank confirmation, etc."
+                rows={2}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              ></textarea>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsPayModalOpen(false)}
+                className="px-4 py-2 text-sm font-semibold border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={payLoading}
+                className="px-5 py-2 text-sm font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl shadow-md transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <TbCurrencyPeso className="w-4 h-4" />
+                <span>{payLoading ? "Processing..." : "Confirm Payment"}</span>
               </button>
             </div>
           </form>

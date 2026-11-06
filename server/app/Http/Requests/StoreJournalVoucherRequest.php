@@ -18,7 +18,7 @@ class StoreJournalVoucherRequest extends FormRequest
             'voucher_date' => 'required|date',
             'description' => 'required|string',
             'debit_account' => 'required|string|max:150',
-            'credit_account' => 'required|string|max:150',
+            'credit_account' => 'required|string|max:150|different:debit_account',
             'amount' => 'required|numeric|min:0.01',
             'prepared_by' => 'nullable|string|max:100',
             'approved_by' => 'required|string|max:100',

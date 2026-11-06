@@ -317,6 +317,8 @@ class ShareCapitalController extends Controller
                 'action' => "Recorded Share Capital Contribution: ₱" . number_format($amount, 2) . " for {$member->full_name} ({$member->member_code}), Ref: {$orNumber}",
                 'ip_address' => $request->ip(),
             ]);
+
+            \App\Services\AccountingService::syncGeneralLedger();
         });
 
         return response()->json([
@@ -405,6 +407,8 @@ class ShareCapitalController extends Controller
                 'action' => "Recorded Membership Fee: ₱" . number_format($amount, 2) . " for {$member->full_name} ({$member->member_code}), OR: {$orNumber}",
                 'ip_address' => $request->ip(),
             ]);
+
+            \App\Services\AccountingService::syncGeneralLedger();
         });
 
         return response()->json([

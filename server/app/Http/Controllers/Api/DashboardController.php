@@ -35,14 +35,12 @@ class DashboardController extends Controller
         $pendingTasks = Task::whereIn('status', ['Pending', 'In Progress'])->count();
 
         // 2. Books of Accounts Cards Metrics
-        // Total Cash In: sourced exclusively from Cash Receipts Journal
-        $totalCashIn = CashReceiptsJournal::sum('amount_received');
-
-        // Total Cash Out: sourced exclusively from Cash Disbursement Journal
-        $totalCashOut = CashDisbursementJournal::sum('amount');
-
-        // Current Cash Balance = Total Cash Receipts - Total Cash Disbursements
-        $currentCashBalance = $totalCashIn - $totalCashOut;
+        $cashBalances = \App\Services\AccountingService::getCashBalances();
+        $totalCashIn = $cashBalances['total_cash_in'];
+        $totalCashOut = $cashBalances['total_cash_out'];
+        $currentCashBalance = $cashBalances['current_cash_balance'];
+        $cashOnHand = $cashBalances['cash_on_hand'];
+        $cashInBank = $cashBalances['cash_in_bank'];
 
         // Total Sales: sourced from the existing Sales Recording module (Sale model)
         $totalSales = $totalSalesAmount;
@@ -143,10 +141,14 @@ class DashboardController extends Controller
                 ];
             });
 
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $prodDateFormat = $isSqlite ? "strftime('%Y-%m', production_date)" : "DATE_FORMAT(production_date, '%Y-%m')";
+        $saleDateFormat = $isSqlite ? "strftime('%Y-%m', sale_date)" : "DATE_FORMAT(sale_date, '%Y-%m')";
+
         // 8. Charts - Production Last 6 Months
         $productionChart = DB::table('productions')
             ->select(
-                DB::raw("DATE_FORMAT(production_date, '%Y-%m') as month"),
+                DB::raw("{$prodDateFormat} as month"),
                 DB::raw("SUM(quantity) as total_qty")
             )
             ->whereIn('status', ['Completed', 'Approved'])
@@ -158,7 +160,7 @@ class DashboardController extends Controller
         // 9. Charts - Sales Last 6 Months
         $salesChart = DB::table('sales')
             ->select(
-                DB::raw("DATE_FORMAT(sale_date, '%Y-%m') as month"),
+                DB::raw("{$saleDateFormat} as month"),
                 DB::raw("SUM(total_amount) as total_revenue")
             )
             ->where('status', 'Paid')
@@ -192,6 +194,8 @@ class DashboardController extends Controller
                 'total_cash_in' => round($totalCashIn, 2),
                 'total_cash_out' => round($totalCashOut, 2),
                 'current_cash_balance' => round($currentCashBalance, 2),
+                'cash_on_hand' => round($cashOnHand, 2),
+                'cash_in_bank' => round($cashInBank, 2),
                 'total_sales' => round($totalSales, 2),
             ],
             'quick_stats' => [

@@ -53,12 +53,18 @@ class GeneralLedgerController extends Controller
         $allowedSorts = ['id', 'account_code', 'account_title', 'transaction_date', 'reference_number', 'debit', 'credit', 'running_balance'];
 
         if (in_array($sortColumn, $allowedSorts)) {
-            $query->orderBy($sortColumn, $sortDirection);
+            $query->orderBy($sortColumn, $sortDirection)->orderBy('id', $sortDirection);
         } else {
-            $query->orderBy('transaction_date', 'desc');
+            $query->orderBy('transaction_date', 'desc')->orderBy('id', 'desc');
         }
 
         $perPage = $request->input('per_page', 10);
+
+        // Calculate accurate query totals for double-entry verification BEFORE paginate
+        // (paginate() adds limit/offset to the query builder, which would make sum() only cover one page)
+        $totalDebit = (clone $query)->sum('debit');
+        $totalCredit = (clone $query)->sum('credit');
+
         $records = $query->paginate($perPage);
 
         // Get distinct accounts list for dropdown filters
@@ -67,9 +73,25 @@ class GeneralLedgerController extends Controller
             ->orderBy('account_code', 'asc')
             ->get();
 
+        // Overall general ledger balance across all accounts
+        $overallDebit = GeneralLedger::sum('debit');
+        $overallCredit = GeneralLedger::sum('credit');
+        $isOverallBalanced = abs((float)$overallDebit - (float)$overallCredit) < 0.01;
+
+        $hasAccountFilter = $request->filled('account_code') || $request->filled('account_title');
+        $isBalanced = $hasAccountFilter ? $isOverallBalanced : (abs((float)$totalDebit - (float)$totalCredit) < 0.01);
+
         return response()->json([
             'records' => $records,
-            'accounts' => $accounts
+            'accounts' => $accounts,
+            'totals' => [
+                'total_debit' => round((float)$totalDebit, 2),
+                'total_credit' => round((float)$totalCredit, 2),
+                'is_balanced' => $isBalanced,
+                'overall_debit' => round((float)$overallDebit, 2),
+                'overall_credit' => round((float)$overallCredit, 2),
+                'is_overall_balanced' => $isOverallBalanced,
+            ]
         ]);
     }
 
@@ -86,63 +108,7 @@ class GeneralLedgerController extends Controller
         try {
             Log::info('Initiating General Ledger synchronization by user ID: ' . $request->user()->id);
 
-            DB::transaction(function() {
-                // Delete existing records (using delete instead of truncate to prevent DDL implicit commits in MySQL transaction)
-                GeneralLedger::query()->delete();
-
-                $entries = [];
-
-                // 1. Cash Disbursement Journals (Account 5010 - Operating Expenses / Cash Outflow)
-                $disbursements = CashDisbursementJournal::all();
-                foreach ($disbursements as $cd) {
-                    $entries[] = [
-                        'account_code' => '5010',
-                        'account_title' => 'Disbursements & Expenses (' . ($cd->expense_account ?? 'General') . ')',
-                        'transaction_date' => $cd->disbursement_date ? \Carbon\Carbon::parse($cd->disbursement_date)->format('Y-m-d') : date('Y-m-d'),
-                        'reference_number' => $cd->voucher_number ?? '',
-                        'debit' => (float)($cd->amount ?? 0),
-                        'credit' => 0.00,
-                        'running_balance' => 0.00,
-                        'source_module' => 'Cash Disbursement',
-                        'description' => "Payee: {$cd->payee} - {$cd->description}",
-                        'created_at' => $cd->created_at,
-                        'updated_at' => $cd->updated_at,
-                    ];
-                }
-
-                // 2. Cash Receipts Journals (Account 1020 - Cash Receipts & Income)
-                $receipts = CashReceiptsJournal::all();
-                foreach ($receipts as $crj) {
-                    $entries[] = [
-                        'account_code' => '1020',
-                        'account_title' => 'Income & Receipts (' . ($crj->source_of_income ?? 'General') . ')',
-                        'transaction_date' => $crj->receipt_date ? \Carbon\Carbon::parse($crj->receipt_date)->format('Y-m-d') : date('Y-m-d'),
-                        'reference_number' => $crj->or_number ?? '',
-                        'debit' => (float)($crj->amount_received ?? 0),
-                        'credit' => 0.00,
-                        'running_balance' => 0.00,
-                        'source_module' => 'Cash Receipts',
-                        'description' => "From: {$crj->received_from} - {$crj->description}",
-                        'created_at' => $crj->created_at,
-                        'updated_at' => $crj->updated_at,
-                    ];
-                }
-
-                // Sort entries chronologically and calculate running balances
-                usort($entries, function($a, $b) {
-                    return strcmp($a['transaction_date'], $b['transaction_date']);
-                });
-
-                $runningBal = 0.00;
-                foreach ($entries as &$e) {
-                    $runningBal += ($e['debit'] - $e['credit']);
-                    $e['running_balance'] = $runningBal;
-                }
-
-                foreach ($entries as $e) {
-                    GeneralLedger::create($e);
-                }
-            });
+            \App\Services\AccountingService::syncGeneralLedger();
 
             ActivityLog::create([
                 'user_id' => $request->user()->id,
@@ -173,18 +139,18 @@ class GeneralLedgerController extends Controller
             $data['source_module'] = 'General Ledger';
         }
 
-        $lastEntry = GeneralLedger::orderBy('transaction_date', 'desc')->orderBy('id', 'desc')->first();
-        $prevBal = $lastEntry ? (float)$lastEntry->running_balance : 0.00;
-        $data['running_balance'] = $prevBal + (float)$data['debit'] - (float)$data['credit'];
+        $record = null;
+        DB::transaction(function () use ($data, &$record, $request) {
+            $record = GeneralLedger::create($data);
+            \App\Services\AccountingService::syncGeneralLedger();
 
-        $record = GeneralLedger::create($data);
-
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Added General Ledger entry: Ref {$record->reference_number} ({$record->account_title})",
-            'ip_address' => $request->ip()
-        ]);
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => "Added General Ledger entry: Ref {$record->reference_number} ({$record->account_title})",
+                'ip_address' => $request->ip()
+            ]);
+        });
 
         return response()->json([
             'message' => 'General Ledger entry created successfully',
@@ -212,14 +178,17 @@ class GeneralLedgerController extends Controller
         }
 
         $data = $request->validated();
-        $record->update($data);
+        DB::transaction(function () use ($record, $data, $id, $request) {
+            $record->update($data);
+            \App\Services\AccountingService::syncGeneralLedger();
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Updated General Ledger entry ID {$id}: Ref {$record->reference_number}",
-            'ip_address' => $request->ip()
-        ]);
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => "Updated General Ledger entry ID {$id}: Ref {$record->reference_number}",
+                'ip_address' => $request->ip()
+            ]);
+        });
 
         return response()->json([
             'message' => 'General Ledger entry updated successfully',
@@ -236,14 +205,17 @@ class GeneralLedgerController extends Controller
         }
 
         $ref = $record->reference_number;
-        $record->delete();
+        DB::transaction(function () use ($record, $ref, $request) {
+            $record->delete();
+            \App\Services\AccountingService::syncGeneralLedger();
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Deleted General Ledger entry: Ref {$ref}",
-            'ip_address' => $request->ip()
-        ]);
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => "Deleted General Ledger entry: Ref {$ref}",
+                'ip_address' => $request->ip()
+            ]);
+        });
 
         return response()->json([
             'message' => 'General Ledger record deleted successfully'

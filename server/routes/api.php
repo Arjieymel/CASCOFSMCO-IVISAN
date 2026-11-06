@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\CashDisbursementController;
 use App\Http\Controllers\Api\CashReceiptController;
+use App\Http\Controllers\Api\JournalVoucherController;
 use App\Http\Controllers\Api\GeneralLedgerController;
 use App\Http\Controllers\Api\ShareCapitalController;
 use App\Http\Middleware\EnsureAdmin;
@@ -71,6 +72,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/productions/{id}', [ProductionController::class, 'show']);
     Route::put('/productions/{id}', [ProductionController::class, 'update']);
     Route::delete('/productions/{id}', [ProductionController::class, 'destroy']);
+    Route::get('/productions/{id}/payments', [ProductionController::class, 'payments']);
+    Route::post('/productions/{id}/pay', [ProductionController::class, 'recordPayment']);
 
     // Sales
     Route::get('/sales', [SaleController::class, 'index']);
@@ -78,6 +81,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales/{id}', [SaleController::class, 'show']);
     Route::put('/sales/{id}', [SaleController::class, 'update']);
     Route::delete('/sales/{id}', [SaleController::class, 'destroy']);
+    Route::get('/sales/{id}/payments', [SaleController::class, 'payments']);
+    Route::post('/sales/{id}/pay', [SaleController::class, 'collectPayment']);
 
     // Tasks
     Route::get('/tasks', [TaskController::class, 'index']);
@@ -137,12 +142,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/cash-receipts/{id}', [CashReceiptController::class, 'update']);
         Route::delete('/cash-receipts/{id}', [CashReceiptController::class, 'destroy']);
 
-        // ── Removed from active UI (routes preserved for data integrity) ─────
-        // Route::get('/journal-vouchers', [JournalVoucherController::class, 'index']);
-        // Route::post('/journal-vouchers', [JournalVoucherController::class, 'store']);
-        // Route::get('/journal-vouchers/{id}', [JournalVoucherController::class, 'show']);
-        // Route::put('/journal-vouchers/{id}', [JournalVoucherController::class, 'update']);
-        // Route::delete('/journal-vouchers/{id}', [JournalVoucherController::class, 'destroy']);
+        // Journal Vouchers
+        Route::get('/journal-vouchers', [JournalVoucherController::class, 'index']);
+        Route::post('/journal-vouchers', [JournalVoucherController::class, 'store']);
+        Route::get('/journal-vouchers/{id}', [JournalVoucherController::class, 'show']);
+        Route::put('/journal-vouchers/{id}', [JournalVoucherController::class, 'update']);
+        Route::delete('/journal-vouchers/{id}', [JournalVoucherController::class, 'destroy']);
 
         // General Ledger
         Route::get('/general-ledger', [GeneralLedgerController::class, 'index']);

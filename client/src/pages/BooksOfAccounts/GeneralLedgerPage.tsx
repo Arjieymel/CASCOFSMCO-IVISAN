@@ -11,6 +11,7 @@ import Swal from "sweetalert2";
 const GeneralLedgerPage = () => {
   const [records, setRecords] = useState<GeneralLedgerRecord[]>([]);
   const [accountsList, setAccountsList] = useState<Array<{ account_code: string; account_title: string }>>([]);
+  const [totals, setTotals] = useState<{ total_debit: number; total_credit: number; is_balanced: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +55,9 @@ const GeneralLedgerPage = () => {
       setLastPage(res.data.records.last_page);
       if (res.data.accounts) {
         setAccountsList(res.data.accounts);
+      }
+      if (res.data.totals) {
+        setTotals(res.data.totals);
       }
     } catch (err) {
       console.error("Failed to load general ledger: ", err);
@@ -316,6 +320,49 @@ const GeneralLedgerPage = () => {
         </div>
       </div>
 
+      {/* Double-Entry Balancing Summary Banner */}
+      {totals && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-100 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">Total Debits</span>
+              <span className="text-lg font-black text-emerald-700 mt-0.5 block">
+                ₱ {totals.total_debit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <span className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-100 text-emerald-800">DR</span>
+          </div>
+
+          <div className="bg-rose-500/5 p-4 rounded-2xl border border-rose-100 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-rose-800 uppercase tracking-wider block">Total Credits</span>
+              <span className="text-lg font-black text-rose-700 mt-0.5 block">
+                ₱ {totals.total_credit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <span className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-rose-100 text-rose-800">CR</span>
+          </div>
+
+          <div className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between ${
+            totals.is_balanced 
+              ? 'bg-emerald-50/50 border-emerald-200 text-emerald-800' 
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider block">Bookkeeping Status</span>
+              <span className="text-sm font-extrabold mt-0.5 block flex items-center gap-1.5">
+                {totals.is_balanced ? '✓ Balanced (Total Dr = Total Cr)' : '⚠ Discrepancy Detected'}
+              </span>
+            </div>
+            <span className={`px-2.5 py-1 text-[10px] font-black rounded-lg ${
+              totals.is_balanced ? 'bg-primary text-white' : 'bg-amber-500 text-white'
+            }`}>
+              {totals.is_balanced ? '100% BALANCED' : 'UNBALANCED'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Search & Filters */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
@@ -449,6 +496,24 @@ const GeneralLedgerPage = () => {
                   </tr>
                 )}
               </tbody>
+              {records.length > 0 && totals && (
+                <tfoot className="bg-slate-50 border-t-2 border-slate-200 text-xs font-bold text-slate-800">
+                  <tr>
+                    <td colSpan={4} className="px-6 py-3.5 text-right uppercase tracking-wider text-slate-500">
+                      Total Ledger Aggregations:
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-black text-emerald-700 bg-emerald-500/10">
+                      ₱ {totals.total_debit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-3.5 text-right font-black text-rose-700 bg-rose-500/10">
+                      ₱ {totals.total_credit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td colSpan={2} className="px-6 py-3.5 text-center text-[11px] font-semibold text-slate-500">
+                      {totals.is_balanced ? '✓ Perfectly Balanced' : 'Check Records'}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}

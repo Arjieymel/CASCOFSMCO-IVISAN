@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Production;
+use App\Models\ProductionPayment;
+use App\Models\CashDisbursementJournal;
 use App\Models\Member;
 use App\Models\Setting;
 use App\Models\ShareCapitalTransaction;
@@ -19,7 +21,7 @@ class ProductionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Production::with(['member', 'cbuTransaction']);
+        $query = Production::with(['member', 'cbuTransaction', 'payments.cashDisbursement']);
 
         // Search
         if ($request->filled('search')) {
@@ -28,10 +30,14 @@ class ProductionController extends Controller
                 $q->where('product_type', 'like', "%{$search}%")
                   ->orWhere('source', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%")
+                  ->orWhere('payment_status', 'like', "%{$search}%")
                   ->orWhereHas('member', function($mq) use ($search) {
                       $mq->where('firstname', 'like', "%{$search}%")
                          ->orWhere('lastname', 'like', "%{$search}%")
                          ->orWhere('member_code', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('payments', function($pq) use ($search) {
+                      $pq->where('voucher_number', 'like', "%{$search}%");
                   });
             });
         }
@@ -49,6 +55,10 @@ class ProductionController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
+        }
+
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $query->whereBetween('production_date', [$request->start_date, $request->end_date]);
         }
@@ -57,7 +67,11 @@ class ProductionController extends Controller
         $sortColumn = $request->input('sort_by', 'production_date');
         $sortDirection = $request->input('order', 'desc');
         
-        $allowedSorts = ['id', 'production_date', 'quantity', 'product_type', 'source', 'status', 'gross_amount', 'net_amount'];
+        $allowedSorts = [
+            'id', 'production_date', 'quantity', 'product_type', 'source', 
+            'status', 'gross_amount', 'net_amount', 'payment_status', 
+            'paid_amount', 'remaining_balance'
+        ];
         if (in_array($sortColumn, $allowedSorts)) {
             $query->orderBy($sortColumn, $sortDirection);
         } else {
@@ -73,6 +87,7 @@ class ProductionController extends Controller
     /**
      * Store a newly created production in storage.
      * Enforces official server-side purchase and CBU computation and connects to Member Share Capital / CBU.
+     * Separates Production Recording from Member Payment (no disbursement created at this stage).
      */
     public function store(Request $request)
     {
@@ -104,7 +119,7 @@ class ProductionController extends Controller
             // 2. Official server calculation: Gross Amount = Quantity × Purchase Price
             $grossAmount = round($quantity * $purchasePrice, 2);
 
-            // 3. Official CBU Rate retrieved from existing system settings/policy
+            // 3. Official CBU Rate retrieved from existing cooperative system settings/policy (never hard-coded)
             $approvedCbuRate = (float) Setting::getVal('cbu_rate_per_kg', 0.50);
 
             // 4. Official server calculation: CBU Deduction = Quantity × Approved CBU Rate
@@ -113,7 +128,12 @@ class ProductionController extends Controller
             // 5. Official server calculation: Net Amount Payable = Gross Amount − CBU Deduction
             $netAmount = max(0.00, round($grossAmount - $cbuDeduction, 2));
 
-            // 6. Save the production transaction
+            // Initial Payment Status
+            $paymentStatus = ($netAmount <= 0.00) ? 'Paid' : 'Unpaid';
+            $paidAmount = 0.00;
+            $remainingBalance = $netAmount;
+
+            // 6. Save the production transaction (Recording phase only, no cash disbursement)
             $data = [
                 'member_id' => $member->id,
                 'product_type' => $request->product_type,
@@ -131,6 +151,9 @@ class ProductionController extends Controller
                 'remarks' => $request->remarks,
                 'production_date' => $request->production_date,
                 'status' => $request->status,
+                'payment_status' => $paymentStatus,
+                'paid_amount' => $paidAmount,
+                'remaining_balance' => $remainingBalance,
             ];
 
             $production = Production::create($data);
@@ -177,19 +200,22 @@ class ProductionController extends Controller
                 ]);
             }
 
+            // Synchronize General Ledger
+            \App\Services\AccountingService::syncGeneralLedger();
+
             // Log activity
             $priceSummary = $purchasePrice > 0 ? " @ ₱" . number_format($purchasePrice, 2) . "/{$production->unit} (Gross: ₱" . number_format($grossAmount, 2) . ", CBU: ₱" . number_format($cbuDeduction, 2) . ", Net: ₱" . number_format($netAmount, 2) . ")" : "";
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
-                'username' => $request->user()?->username,
-                'action' => "Recorded Production: {$production->quantity}{$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}.",
+                'username' => $request->user()?->username ?: 'admin',
+                'action' => "Recorded Production: {$production->quantity}{$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}. Payment Status: {$paymentStatus}.",
                 'ip_address' => $request->ip()
             ]);
         });
 
         return response()->json([
             'message' => 'Production record created successfully',
-            'production' => $production->fresh()->load('member', 'cbuTransaction')
+            'production' => $production->fresh()->load('member', 'cbuTransaction', 'payments.cashDisbursement')
         ], 201);
     }
 
@@ -198,7 +224,7 @@ class ProductionController extends Controller
      */
     public function show($id)
     {
-        $production = Production::with(['member', 'cbuTransaction'])->find($id);
+        $production = Production::with(['member', 'cbuTransaction', 'payments.cashDisbursement'])->find($id);
 
         if (!$production) {
             return response()->json(['message' => 'Production record not found'], 404);
@@ -248,8 +274,8 @@ class ProductionController extends Controller
             // 2. Official server calculation: Gross Amount = Quantity × Purchase Price
             $grossAmount = round($quantity * $purchasePrice, 2);
 
-            // 3. Official CBU Rate retrieved from existing system settings/policy
-            $approvedCbuRate = (float) Setting::getVal('cbu_rate_per_kg', 0.00);
+            // 3. Official CBU Rate retrieved from existing system settings/policy (never hardcoded)
+            $approvedCbuRate = (float) Setting::getVal('cbu_rate_per_kg', 0.50);
 
             // 4. Official server calculation: CBU Deduction = Quantity × Approved CBU Rate
             $cbuDeduction = $approvedCbuRate > 0 ? round($quantity * $approvedCbuRate, 2) : 0.00;
@@ -333,6 +359,17 @@ class ProductionController extends Controller
                 $member->save();
             }
 
+            // Recalculate remaining balance and payment status with existing payments
+            $currentPaid = (float) $production->paid_amount;
+            $newRemaining = max(0.00, round($netAmount - $currentPaid, 2));
+            if ($newRemaining <= 0.005) {
+                $paymentStatus = 'Paid';
+            } elseif ($currentPaid > 0) {
+                $paymentStatus = 'Partially Paid';
+            } else {
+                $paymentStatus = 'Unpaid';
+            }
+
             // Update production record
             $data = [
                 'member_id' => $member->id,
@@ -351,15 +388,20 @@ class ProductionController extends Controller
                 'remarks' => $request->remarks,
                 'production_date' => $request->production_date,
                 'status' => $request->status,
+                'payment_status' => $paymentStatus,
+                'remaining_balance' => $newRemaining,
             ];
 
             $production->update($data);
 
+            // Synchronize General Ledger
+            \App\Services\AccountingService::syncGeneralLedger();
+
             // Log action
-            $priceSummary = $purchasePrice > 0 ? " @ ₱" . number_format($purchasePrice, 2) . "/{$production->unit} (Net: ₱" . number_format($netAmount, 2) . ")" : "";
+            $priceSummary = $purchasePrice > 0 ? " @ ₱" . number_format($purchasePrice, 2) . "/{$production->unit} (Net: ₱" . number_format($netAmount, 2) . ", Rem: ₱" . number_format($newRemaining, 2) . ")" : "";
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
-                'username' => $request->user()?->username,
+                'username' => $request->user()?->username ?: 'admin',
                 'action' => "Updated Production ID {$production->id}: {$production->quantity}{$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}.",
                 'ip_address' => $request->ip()
             ]);
@@ -367,7 +409,167 @@ class ProductionController extends Controller
 
         return response()->json([
             'message' => 'Production record updated successfully',
-            'production' => $production->fresh()->load('member', 'cbuTransaction')
+            'production' => $production->fresh()->load('member', 'cbuTransaction', 'payments.cashDisbursement')
+        ]);
+    }
+
+    /**
+     * Record actual member payment for a production.
+     * Integrates with Cash Disbursement Journal and updates Current Cash Balance strictly by the amount paid.
+     * Prevents duplicate payments and accounting entries.
+     */
+    public function recordPayment(Request $request, $id)
+    {
+        $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'payment_date' => 'required|date',
+            'payment_method' => 'required|string|in:Cash,Check,Bank Transfer,GCash',
+            'voucher_number' => 'nullable|string|max:100',
+            'approved_by' => 'nullable|string|max:100',
+            'expense_account' => 'nullable|string|max:150',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $payment = null;
+        $production = null;
+
+        DB::transaction(function () use ($request, $id, &$payment, &$production) {
+            // Lock production row to prevent race conditions & duplicate payments
+            $production = Production::with('member')->where('id', $id)->lockForUpdate()->firstOrFail();
+
+            // 1. Prevent payment on cancelled production
+            if ($production->status === 'Cancelled') {
+                abort(422, 'Cannot record payment for a cancelled production batch.');
+            }
+
+            // 2. Prevent payment if already fully paid (Duplicate Payment Prevention)
+            if ($production->remaining_balance <= 0.00 || $production->payment_status === 'Paid') {
+                abort(422, 'This production batch has already been fully paid.');
+            }
+
+            $payAmount = round((float) $request->amount, 2);
+            $remaining = (float) $production->remaining_balance;
+
+            // 3. Prevent overpayment
+            if ($payAmount > ($remaining + 0.005)) {
+                abort(422, "Payment amount (₱" . number_format($payAmount, 2) . ") cannot exceed remaining balance (₱" . number_format($remaining, 2) . ").");
+            }
+
+            // 4. Generate or validate unique Cash Disbursement Voucher (CDV)
+            $voucherNumber = $request->voucher_number ? trim($request->voucher_number) : null;
+            $year = Carbon::parse($request->payment_date)->year;
+
+            if (empty($voucherNumber)) {
+                $latest = CashDisbursementJournal::where('voucher_number', 'like', "CDV-{$year}-%")
+                    ->orderBy('id', 'desc')
+                    ->first();
+                $seq = 1;
+                if ($latest) {
+                    $parts = explode('-', $latest->voucher_number);
+                    $seq = ((int)end($parts)) + 1;
+                }
+                do {
+                    $candidate = sprintf("CDV-%d-%04d", $year, $seq);
+                    $exists = CashDisbursementJournal::where('voucher_number', $candidate)->exists();
+                    if (!$exists) break;
+                    $seq++;
+                } while ($exists);
+                $voucherNumber = $candidate;
+            } else {
+                // Ensure manual voucher is unique
+                if (CashDisbursementJournal::where('voucher_number', $voucherNumber)->exists()) {
+                    abort(422, "Disbursement voucher number '{$voucherNumber}' has already been recorded.");
+                }
+            }
+
+            $member = $production->member;
+            $memberName = $member ? "{$member->firstname} {$member->lastname}" : 'Member';
+            $expenseAccount = $request->input('expense_account', 'Copra Procurement Expenses');
+            $approvedBy = $request->input('approved_by', 'General Manager');
+
+            // 5. Record actual payment in Cash Disbursement Journal (Cash Outflow)
+            // This strictly decrements Current Cash Balance by exactly $payAmount
+            $disbursement = CashDisbursementJournal::create([
+                'voucher_number' => $voucherNumber,
+                'disbursement_date' => $request->payment_date,
+                'payee' => $memberName,
+                'description' => "Member Payment for Production #{$production->id} ({$production->quantity}{$production->unit} {$production->product_type})",
+                'expense_account' => $expenseAccount,
+                'amount' => $payAmount,
+                'payment_method' => $request->payment_method,
+                'approved_by' => $approvedBy,
+                'user_id' => $request->user()?->id,
+                'production_id' => $production->id,
+                'remarks' => $request->remarks ?: "Member payment for Production #{$production->id}",
+            ]);
+
+            // 6. Record payment history record
+            $payment = ProductionPayment::create([
+                'production_id' => $production->id,
+                'cash_disbursement_id' => $disbursement->id,
+                'member_id' => $production->member_id,
+                'voucher_number' => $voucherNumber,
+                'payment_date' => $request->payment_date,
+                'amount' => $payAmount,
+                'payment_method' => $request->payment_method,
+                'approved_by' => $approvedBy,
+                'remarks' => $request->remarks,
+                'user_id' => $request->user()?->id,
+                'recorded_by' => $request->user()?->username ?: 'admin',
+            ]);
+
+            // 7. Update production payment status and balance
+            $newPaid = round((float)$production->paid_amount + $payAmount, 2);
+            $newRemaining = max(0.00, round((float)$production->net_amount - $newPaid, 2));
+
+            $production->paid_amount = $newPaid;
+            $production->remaining_balance = $newRemaining;
+            $production->payment_status = ($newRemaining <= 0.005) ? 'Paid' : 'Partially Paid';
+            $production->save();
+
+            // Synchronize General Ledger
+            \App\Services\AccountingService::syncGeneralLedger();
+
+            // 8. Log activity
+            ActivityLog::create([
+                'user_id' => $request->user()?->id,
+                'username' => $request->user()?->username ?: 'admin',
+                'action' => "Recorded Member Payment of ₱" . number_format($payAmount, 2) . " for Production #{$production->id} (Member: {$memberName}, Voucher: {$voucherNumber}, Remaining Balance: ₱" . number_format($newRemaining, 2) . ")",
+                'ip_address' => $request->ip()
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Member payment recorded successfully',
+            'payment' => $payment->load('cashDisbursement'),
+            'production' => $production->fresh()->load('member', 'cbuTransaction', 'payments.cashDisbursement')
+        ], 201);
+    }
+
+    /**
+     * Get payment history for a specific production.
+     */
+    public function payments($id)
+    {
+        $production = Production::find($id);
+
+        if (!$production) {
+            return response()->json(['message' => 'Production record not found'], 404);
+        }
+
+        $payments = ProductionPayment::with(['cashDisbursement', 'user'])
+            ->where('production_id', $id)
+            ->orderBy('payment_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return response()->json([
+            'production_id' => $production->id,
+            'net_amount' => (float)$production->net_amount,
+            'paid_amount' => (float)$production->paid_amount,
+            'remaining_balance' => (float)$production->remaining_balance,
+            'payment_status' => $production->payment_status,
+            'payments' => $payments
         ]);
     }
 
@@ -393,17 +595,29 @@ class ProductionController extends Controller
                 $existingCbu->delete();
             }
 
+            // Remove linked CashDisbursementJournal records and production payments
+            $payments = ProductionPayment::where('production_id', $production->id)->get();
+            foreach ($payments as $pmt) {
+                if ($pmt->cash_disbursement_id) {
+                    CashDisbursementJournal::where('id', $pmt->cash_disbursement_id)->delete();
+                }
+                $pmt->delete();
+            }
+
             $memberName = $member ? "{$member->firstname} {$member->lastname}" : 'Unknown Member';
 
             // Log action
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
-                'username' => $request->user()?->username,
+                'username' => $request->user()?->username ?: 'admin',
                 'action' => "Deleted Production ID {$id}: {$production->quantity}{$production->unit} of {$production->product_type} for member {$memberName}.",
                 'ip_address' => $request->ip()
             ]);
 
             $production->delete();
+
+            // Synchronize General Ledger
+            \App\Services\AccountingService::syncGeneralLedger();
         });
 
         return response()->json([

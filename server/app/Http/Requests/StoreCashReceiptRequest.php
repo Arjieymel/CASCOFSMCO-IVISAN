@@ -18,7 +18,7 @@ class StoreCashReceiptRequest extends FormRequest
             'receipt_date' => 'required|date',
             'received_from' => 'required|string|max:150',
             'description' => 'required|string',
-            'source_of_income' => 'required|string|max:150',
+            'source_of_income' => 'nullable|string|max:150',
             'amount_received' => 'required|numeric|min:0.01',
             'payment_method' => 'nullable|string|max:50',
             'remarks' => 'nullable|string',

@@ -38,11 +38,10 @@ const CashReceiptsPage = () => {
   const [backendTotals, setBackendTotals] = useState<{
     cashOnHand: number;
     cashInBank: number;
-    savingsDeposit: number;
     shareCapital: number;
     loanPayment: number;
-    interestIncome: number;
-    miscIncome: number;
+    sales: number;
+    otherIncome: number;
     grandTotal: number;
   } | null>(null);
 
@@ -70,13 +69,7 @@ const CashReceiptsPage = () => {
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const baseIncomeClassifications = [
-    "Share Capital",
-    "Loan Payment"
-  ];
-  const incomeClassificationOptions = baseIncomeClassifications.includes(sourceOfIncome)
-    ? baseIncomeClassifications
-    : [sourceOfIncome, ...baseIncomeClassifications];
+
 
   const fetchRecords = async (
     page: number = 1,
@@ -298,6 +291,8 @@ const CashReceiptsPage = () => {
     let cashInBank = 0;
     let shareCapital = 0;
     let loanPayment = 0;
+    let sales = 0;
+    let otherIncome = 0;
     let grandTotal = 0;
 
     records.forEach(r => {
@@ -320,6 +315,10 @@ const CashReceiptsPage = () => {
         shareCapital += amt;
       } else if (cls === "loan payment") {
         loanPayment += amt;
+      } else if (cls.includes("sale")) {
+        sales += amt;
+      } else {
+        otherIncome += amt;
       }
 
       grandTotal += amt;
@@ -330,6 +329,8 @@ const CashReceiptsPage = () => {
       cashInBank,
       shareCapital,
       loanPayment,
+      sales,
+      otherIncome,
       grandTotal
     };
   };
@@ -373,7 +374,6 @@ const CashReceiptsPage = () => {
       ["Receipt Date", cleanDate],
       ["Received From", r.received_from],
       ["Payment Method", method],
-      ["Income Classification", r.source_of_income],
       ["Amount Received", `₱ ${parseFloat(r.amount_received?.toString() || "0").toLocaleString(undefined, { minimumFractionDigits: 2 })}`],
       ["Particulars", r.description],
       ["Recorded By", r.recorded_by || "admin"],
@@ -658,21 +658,7 @@ const CashReceiptsPage = () => {
                 </div>
               </div>
 
-              {/* Income Classification */}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Income Classification</label>
-                <select
-                  value={sourceOfIncome}
-                  onChange={(e) => setSourceOfIncome(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary text-slate-800 font-semibold cursor-pointer"
-                >
-                  {incomeClassificationOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                {formErrors.source_of_income && <p className="text-red-500 text-xs mt-1">{formErrors.source_of_income[0]}</p>}
-              </div>
+
 
               {/* Remarks */}
               <div>
@@ -847,8 +833,10 @@ const CashReceiptsPage = () => {
                         <th className="px-3 py-3.5 text-right w-28 bg-emerald-500/5 text-emerald-800 font-extrabold">Cash in Bank</th>
                         
                         {/* Credit Columns */}
-                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold border-l border-slate-100">Share Capital</th>
-                        <th className="px-3 py-3.5 text-right w-28 bg-blue-500/5 text-blue-800 font-extrabold">Loan Payment</th>
+                        <th className="px-3 py-3.5 text-right w-24 bg-blue-500/5 text-blue-800 font-extrabold border-l border-slate-100">Share Capital</th>
+                        <th className="px-3 py-3.5 text-right w-24 bg-blue-500/5 text-blue-800 font-extrabold">Loan Payment</th>
+                        <th className="px-3 py-3.5 text-right w-24 bg-blue-500/5 text-blue-800 font-extrabold">Sales</th>
+                        <th className="px-3 py-3.5 text-right w-24 bg-blue-500/5 text-blue-800 font-extrabold">Other Income</th>
                         
                         <th onClick={() => handleSort("amount_received")} className="px-3 py-3.5 text-right cursor-pointer hover:text-slate-700 w-28 font-black text-slate-800 border-l border-slate-100">
                           Total Amount {sortBy === "amount_received" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
@@ -877,9 +865,13 @@ const CashReceiptsPage = () => {
                           const cls = (r.source_of_income || "").trim().toLowerCase();
                           const isCapital = cls === "share capital";
                           const isLoan = cls === "loan payment";
+                          const isSales = cls.includes("sale");
+                          const isOther = !isCapital && !isLoan && !isSales;
 
                           const capitalVal = isCapital ? amt : 0;
                           const loanVal = isLoan ? amt : 0;
+                          const salesVal = isSales ? amt : 0;
+                          const otherVal = isOther ? amt : 0;
 
                           const formatCurrency = (val: number) => {
                             if (val === 0) return <span className="text-slate-300">—</span>;
@@ -908,6 +900,8 @@ const CashReceiptsPage = () => {
                               {/* Credit */}
                               <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700 border-l border-slate-100">{formatCurrency(capitalVal)}</td>
                               <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(loanVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(salesVal)}</td>
+                              <td className="px-3 py-3.5 text-right bg-blue-500/5 text-blue-700">{formatCurrency(otherVal)}</td>
                               
                               {/* Total */}
                               <td className="px-3 py-3.5 text-right font-extrabold text-slate-900 bg-slate-50/20 border-l border-slate-150">
@@ -978,43 +972,59 @@ const CashReceiptsPage = () => {
               <span>Live Ledger Classification Aggregations</span>
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
               {/* Total Cash on Hand */}
-              <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-100/50">
-                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Total Cash on Hand</span>
-                <span className="text-sm font-extrabold text-emerald-700 mt-1 block">
+              <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-100/50">
+                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Cash on Hand (DR)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-700 mt-1 block">
                   ₱ {totals.cashOnHand.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
 
               {/* Total Cash in Bank */}
-              <div className="bg-emerald-500/5 p-4 rounded-xl border border-emerald-100/50">
-                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Total Cash in Bank</span>
-                <span className="text-sm font-extrabold text-emerald-700 mt-1 block">
+              <div className="bg-emerald-500/5 p-3 rounded-xl border border-emerald-100/50">
+                <span className="text-[9px] font-bold text-emerald-800 uppercase tracking-wider block">Cash in Bank (DR)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-700 mt-1 block">
                   ₱ {totals.cashInBank.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
 
               {/* Total Share Capital */}
-              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
-                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Share Capital</span>
-                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+              <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Share Capital (CR)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-blue-700 mt-1 block">
                   ₱ {totals.shareCapital.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
 
               {/* Total Loan Payment */}
-              <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-100/50">
-                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Loan Payments</span>
-                <span className="text-sm font-extrabold text-blue-700 mt-1 block">
+              <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Loan Payments (CR)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-blue-700 mt-1 block">
                   ₱ {totals.loanPayment.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
 
+              {/* Total Sales */}
+              <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Sales Revenue (CR)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {(totals.sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Total Other Income */}
+              <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-100/50">
+                <span className="text-[9px] font-bold text-blue-800 uppercase tracking-wider block">Other Income (CR)</span>
+                <span className="text-xs sm:text-sm font-extrabold text-blue-700 mt-1 block">
+                  ₱ {(totals.otherIncome || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
               {/* Grand Total Receipts */}
-              <div className="bg-primary p-4 rounded-xl border border-primary text-white shadow-xs">
-                <span className="text-[9px] font-bold text-slate-100 uppercase tracking-wider block">Grand Total Receipts</span>
-                <span className="text-sm font-black text-white mt-1 block">
+              <div className="bg-primary p-3 rounded-xl border border-primary text-white shadow-xs col-span-2 sm:col-span-1">
+                <span className="text-[9px] font-bold text-slate-100 uppercase tracking-wider block">Grand Total</span>
+                <span className="text-xs sm:text-sm font-black text-white mt-1 block">
                   ₱ {totals.grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
@@ -1100,14 +1110,10 @@ const CashReceiptsPage = () => {
                 </span>
               </div>
               
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="pt-2">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Received From</span>
                   <span className="font-bold text-slate-800 text-sm block">{selectedRecord.received_from}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Classification</span>
-                  <span className="font-semibold text-slate-750 text-sm block">{selectedRecord.source_of_income}</span>
                 </div>
               </div>
             </div>

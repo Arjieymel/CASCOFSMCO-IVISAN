@@ -19,6 +19,7 @@ class CashReceiptsJournal extends Model
         'amount_received',
         'recorded_by',
         'user_id',
+        'sale_id',
         'remarks',
     ];
 
@@ -42,5 +43,10 @@ class CashReceiptsJournal extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class, 'sale_id');
     }
 }

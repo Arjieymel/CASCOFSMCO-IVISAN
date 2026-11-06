@@ -59,6 +59,24 @@ const SaleService = {
     } catch (error) {
       throw error;
     }
+  },
+
+  collectPayment: async (id: number | string, data: any) => {
+    try {
+      const response = await AxiosInstance.post(`/sales/${id}/pay`, data);
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  getPayments: async (id: number | string) => {
+    try {
+      const response = await AxiosInstance.get(`/sales/${id}/payments`);
+      return response;
+    } catch (error) {
+      throw error;
+    }
   }
 };
 

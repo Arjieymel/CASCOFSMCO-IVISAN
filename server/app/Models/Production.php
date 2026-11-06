@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Production extends Model
 {
@@ -27,6 +28,9 @@ class Production extends Model
         'remarks',
         'production_date',
         'status',
+        'payment_status',
+        'paid_amount',
+        'remaining_balance',
     ];
 
     protected $casts = [
@@ -39,6 +43,8 @@ class Production extends Model
         'cbu_deducted' => 'boolean',
         'cbu_deducted_at' => 'datetime',
         'production_date' => 'date',
+        'paid_amount' => 'decimal:2',
+        'remaining_balance' => 'decimal:2',
     ];
 
     /**
@@ -55,5 +61,13 @@ class Production extends Model
     public function cbuTransaction(): BelongsTo
     {
         return $this->belongsTo(ShareCapitalTransaction::class, 'cbu_transaction_id');
+    }
+
+    /**
+     * Relationship to the member payment records.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ProductionPayment::class, 'production_id');
     }
 }

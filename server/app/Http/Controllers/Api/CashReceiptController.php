@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use App\Http\Requests\StoreCashReceiptRequest;
 use App\Http\Requests\UpdateCashReceiptRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class CashReceiptController extends Controller
@@ -45,6 +46,8 @@ class CashReceiptController extends Controller
             'cashInBank' => 0.00,
             'shareCapital' => 0.00,
             'loanPayment' => 0.00,
+            'sales' => 0.00,
+            'otherIncome' => 0.00,
             'grandTotal' => 0.00,
         ];
 
@@ -54,7 +57,9 @@ class CashReceiptController extends Controller
 
             // Determine method
             $method = 'Cash';
-            if ($r->remarks && preg_match('/^\[Method:\s*([^\]]+)\]/', $r->remarks, $m)) {
+            if (!empty($r->payment_method)) {
+                $method = trim($r->payment_method);
+            } elseif ($r->remarks && preg_match('/^\[Method:\s*([^\]]+)\]/', $r->remarks, $m)) {
                 $method = trim($m[1]);
             }
             if (strcasecmp($method, 'Cash') === 0) {
@@ -69,6 +74,10 @@ class CashReceiptController extends Controller
                 $totals['shareCapital'] += $amt;
             } elseif ($cls === 'loan payment') {
                 $totals['loanPayment'] += $amt;
+            } elseif (str_contains($cls, 'sale')) {
+                $totals['sales'] += $amt;
+            } else {
+                $totals['otherIncome'] += $amt;
             }
         }
 
@@ -95,28 +104,12 @@ class CashReceiptController extends Controller
     {
         $data = $request->validated();
 
-        if (empty($data['or_number'])) {
-            $year = Carbon::parse($data['receipt_date'])->year;
-            $allOrs = CashReceiptsJournal::where('or_number', 'like', "OR-{$year}-%")->pluck('or_number');
-            $maxSeq = 0;
-            foreach ($allOrs as $existingOr) {
-                $parts = explode('-', $existingOr);
-                $num = (int)end($parts);
-                if ($num > $maxSeq) {
-                    $maxSeq = $num;
-                }
-            }
-            $seq = $maxSeq + 1;
-            do {
-                $candidate = sprintf("OR-%d-%04d", $year, $seq);
-                $exists = CashReceiptsJournal::where('or_number', $candidate)->exists();
-                if (!$exists) {
-                    break;
-                }
-                $seq++;
-            } while ($exists);
+        if (empty($data['source_of_income'])) {
+            $data['source_of_income'] = 'Share Capital';
+        }
 
-            $data['or_number'] = $candidate;
+        if (empty($data['or_number'])) {
+            $data['or_number'] = \App\Services\AccountingService::generateOrNumber($data['receipt_date']);
         }
 
         $method = $request->input('payment_method');
@@ -132,16 +125,22 @@ class CashReceiptController extends Controller
         $data['user_id'] = $user ? $user->id : null;
         $data['recorded_by'] = $user ? ($user->username ?? $user->name) : 'admin';
 
-        $record = CashReceiptsJournal::create($data);
+        $record = null;
+        DB::transaction(function () use ($data, &$record, $user, $request) {
+            $record = CashReceiptsJournal::create($data);
 
-        if ($user) {
-            ActivityLog::create([
-                'user_id' => $user->id,
-                'username' => $user->username ?? 'admin',
-                'action' => "Recorded Cash Receipt: OR {$record->or_number} from {$record->received_from} (Amount: ₱{$record->amount_received})",
-                'ip_address' => $request->ip()
-            ]);
-        }
+            // Synchronize General Ledger atomically
+            \App\Services\AccountingService::syncGeneralLedger();
+
+            if ($user) {
+                ActivityLog::create([
+                    'user_id' => $user->id,
+                    'username' => $user->username ?? 'admin',
+                    'action' => "Recorded Cash Receipt: OR {$record->or_number} from {$record->received_from} (Amount: ₱{$record->amount_received})",
+                    'ip_address' => $request->ip()
+                ]);
+            }
+        });
 
         return response()->json([
             'message' => 'Cash receipt recorded successfully',
@@ -170,6 +169,10 @@ class CashReceiptController extends Controller
 
         $data = $request->validated();
 
+        if (empty($data['source_of_income'])) {
+            $data['source_of_income'] = $record->source_of_income ?? 'Share Capital';
+        }
+
         if (empty($data['or_number'])) {
             $data['or_number'] = $record->or_number;
         }
@@ -183,17 +186,20 @@ class CashReceiptController extends Controller
             $data['remarks'] = $cleanRemarks;
         }
 
-        $record->update($data);
-
         $user = $request->user();
-        if ($user) {
-            ActivityLog::create([
-                'user_id' => $user->id,
-                'username' => $user->username ?? 'admin',
-                'action' => "Updated Cash Receipt OR: {$record->or_number}",
-                'ip_address' => $request->ip()
-            ]);
-        }
+        DB::transaction(function () use ($record, $data, $user, $request) {
+            $record->update($data);
+            \App\Services\AccountingService::syncGeneralLedger();
+
+            if ($user) {
+                ActivityLog::create([
+                    'user_id' => $user->id,
+                    'username' => $user->username ?? 'admin',
+                    'action' => "Updated Cash Receipt OR: {$record->or_number}",
+                    'ip_address' => $request->ip()
+                ]);
+            }
+        });
 
         return response()->json([
             'message' => 'Cash receipt updated successfully',
@@ -210,17 +216,21 @@ class CashReceiptController extends Controller
         }
 
         $or = $record->or_number;
-        $record->delete();
-
         $user = $request->user();
-        if ($user) {
-            ActivityLog::create([
-                'user_id' => $user->id,
-                'username' => $user->username ?? 'admin',
-                'action' => "Deleted Cash Receipt OR: {$or}",
-                'ip_address' => $request->ip()
-            ]);
-        }
+
+        DB::transaction(function () use ($record, $or, $user, $request) {
+            $record->delete();
+            \App\Services\AccountingService::syncGeneralLedger();
+
+            if ($user) {
+                ActivityLog::create([
+                    'user_id' => $user->id,
+                    'username' => $user->username ?? 'admin',
+                    'action' => "Deleted Cash Receipt OR: {$or}",
+                    'ip_address' => $request->ip()
+                ]);
+            }
+        });
 
         return response()->json([
             'message' => 'Cash receipt record deleted successfully'

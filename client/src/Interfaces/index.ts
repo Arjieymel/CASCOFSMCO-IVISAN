@@ -58,11 +58,49 @@ export interface Production {
   cbu_transaction_id?: number | null;
   source: string;
   remarks?: string | null;
+  status: 'Pending' | 'Approved' | 'Completed' | 'Rejected' | string;
   production_date: string;
-  status: 'Pending' | 'Approved' | 'Completed' | 'Cancelled';
+  payment_status?: 'Unpaid' | 'Partially Paid' | 'Paid';
+  paid_amount?: number | string;
+  remaining_balance?: number | string;
+  payments?: ProductionPayment[];
   member?: Member;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ProductionPayment {
+  id: number;
+  production_id: number;
+  cash_disbursement_id?: number | null;
+  member_id: number;
+  voucher_number: string;
+  payment_date: string;
+  amount: number | string;
+  payment_method: string;
+  approved_by?: string | null;
+  remarks?: string | null;
+  user_id?: number | null;
+  recorded_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  cash_disbursement?: any;
+}
+
+export interface SalePayment {
+  id: number;
+  sale_id: number;
+  cash_receipt_id?: number | null;
+  or_number: string;
+  payment_date: string;
+  amount: number | string;
+  payment_method: string;
+  remarks?: string | null;
+  user_id?: number | null;
+  recorded_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  cash_receipt?: any;
 }
 
 export interface Sale {
@@ -74,10 +112,15 @@ export interface Sale {
   unit: string;
   unit_price: number | string;
   total_amount: number | string;
+  paid_amount?: number | string;
+  remaining_balance?: number | string;
+  cash_receipt_id?: number | null;
   payment_method: 'Cash' | 'GCash' | 'Bank Transfer' | 'Check';
   remarks?: string | null;
-  status: 'Paid' | 'Pending' | 'Cancelled';
+  status: 'Paid' | 'Pending' | 'Credit' | 'Partially Paid' | 'Cancelled';
   sale_date: string;
+  payments?: SalePayment[];
+  cash_receipt?: any;
   created_at?: string;
   updated_at?: string;
 }

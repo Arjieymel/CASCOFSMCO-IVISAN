@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use App\Http\Requests\StoreJournalVoucherRequest;
 use App\Http\Requests\UpdateJournalVoucherRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class JournalVoucherController extends Controller
@@ -73,14 +74,18 @@ class JournalVoucherController extends Controller
 
         $data['user_id'] = $request->user()->id;
 
-        $record = JournalVoucher::create($data);
+        $record = null;
+        DB::transaction(function () use ($data, &$record, $request) {
+            $record = JournalVoucher::create($data);
+            \App\Services\AccountingService::syncGeneralLedger();
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Created Journal Voucher: {$record->voucher_number} (Amount: ₱{$record->amount}, Status: {$record->status})",
-            'ip_address' => $request->ip()
-        ]);
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => "Created Journal Voucher: {$record->voucher_number} (Amount: ₱{$record->amount}, Status: {$record->status})",
+                'ip_address' => $request->ip()
+            ]);
+        });
 
         return response()->json([
             'message' => 'Journal Voucher created successfully',
@@ -108,14 +113,17 @@ class JournalVoucherController extends Controller
         }
 
         $data = $request->validated();
-        $record->update($data);
+        DB::transaction(function () use ($record, $data, $request) {
+            $record->update($data);
+            \App\Services\AccountingService::syncGeneralLedger();
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Updated Journal Voucher: {$record->voucher_number}",
-            'ip_address' => $request->ip()
-        ]);
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => "Updated Journal Voucher: {$record->voucher_number}",
+                'ip_address' => $request->ip()
+            ]);
+        });
 
         return response()->json([
             'message' => 'Journal Voucher updated successfully',
@@ -132,14 +140,17 @@ class JournalVoucherController extends Controller
         }
 
         $vn = $record->voucher_number;
-        $record->delete();
+        DB::transaction(function () use ($record, $vn, $request) {
+            $record->delete();
+            \App\Services\AccountingService::syncGeneralLedger();
 
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'username' => $request->user()->username,
-            'action' => "Deleted Journal Voucher: {$vn}",
-            'ip_address' => $request->ip()
-        ]);
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'username' => $request->user()->username,
+                'action' => "Deleted Journal Voucher: {$vn}",
+                'ip_address' => $request->ip()
+            ]);
+        });
 
         return response()->json([
             'message' => 'Journal Voucher deleted successfully'

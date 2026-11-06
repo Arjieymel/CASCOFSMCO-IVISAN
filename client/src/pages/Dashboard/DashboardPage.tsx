@@ -53,6 +53,8 @@ interface DashboardData {
     total_cash_in?: number;
     total_cash_out?: number;
     current_cash_balance?: number;
+    cash_on_hand?: number;
+    cash_in_bank?: number;
     total_sales?: number;
   };
   quick_stats: {
@@ -598,7 +600,11 @@ const DashboardPage = () => {
               <h4 className="text-2xl font-extrabold text-white tracking-tight">
                 ₱ {(data.cards.current_cash_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </h4>
-              <p className="text-[11px] text-emerald-300/80 font-medium mt-1">Net Cooperative Ledger Standing</p>
+              <div className="flex items-center gap-3 text-[10px] text-emerald-300 font-semibold mt-1">
+                <span>Hand: ₱{(data.cards.cash_on_hand || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span>•</span>
+                <span>Bank: ₱{(data.cards.cash_in_bank || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
             </div>
             {/* Subtle background glow */}
             <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none"></div>

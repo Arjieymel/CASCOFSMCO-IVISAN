@@ -24,4 +24,20 @@ class StoreGeneralLedgerRequest extends FormRequest
             'description' => 'nullable|string',
         ];
     }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $debit = (float)$this->input('debit', 0);
+            $credit = (float)$this->input('credit', 0);
+
+            if ($debit <= 0 && $credit <= 0) {
+                $validator->errors()->add('debit', 'Either Debit or Credit amount must be greater than zero.');
+            }
+
+            if ($debit > 0 && $credit > 0) {
+                $validator->errors()->add('credit', 'A single ledger line cannot have both Debit and Credit amounts. Record separate entries for Debit and Credit.');
+            }
+        });
+    }
 }
