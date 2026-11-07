@@ -4,14 +4,273 @@ import type { Member } from "../../Interfaces";
 import SearchBar from "../../components/SearchBar";
 import Pagination from "../../components/Pagination";
 import Modal from "../../components/Modal";
-import { FiPlus, FiEdit, FiTrash2, FiEye, FiUser, FiMail, FiPhone, FiMapPin, FiCalendar } from "react-icons/fi";
+import {
+  FiPlus, FiEdit, FiTrash2, FiEye, FiUser, FiMail, FiPhone, FiMapPin, FiCalendar, FiGrid, FiList, FiInfo,
+} from "react-icons/fi";
+import { TbGenderMale, TbGenderFemale, TbIdBadge2, TbUsers } from "react-icons/tb";
 import Swal from "sweetalert2";
+
+// Helper to calculate member age
+const calculateMemberAge = (birthdate?: string, age?: number) => {
+  if (age !== undefined && age !== null && age > 0) return age;
+  if (!birthdate) return 20;
+  try {
+    const birth = new Date(birthdate);
+    const now = new Date();
+    let calculated = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) {
+      calculated--;
+    }
+    return calculated > 0 ? calculated : 20;
+  } catch {
+    return 20;
+  }
+};
+
+// Illustrated Farmer Avatar matching the guide design
+const MemberCardAvatar = ({
+  url,
+  firstname,
+  lastname,
+  gender,
+  className = "w-16 h-16 sm:w-18 sm:h-18",
+}: {
+  url?: string | null;
+  firstname: string;
+  lastname: string;
+  gender?: string;
+  className?: string;
+}) => {
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt={`${firstname} ${lastname}`}
+        className={`${className} rounded-full object-cover border-2 border-emerald-100 shadow-2xs`}
+      />
+    );
+  }
+
+  const isFemale = gender === "Female";
+
+  return (
+    <div className={`${className} rounded-full bg-emerald-100 overflow-hidden flex items-end justify-center relative border-2 border-emerald-200/70 shadow-2xs shrink-0`}>
+      <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Soft green circle background */}
+        <circle cx="50" cy="50" r="50" fill="#DCFCE7" />
+
+        {/* Hair Back */}
+        <ellipse cx="50" cy={isFemale ? 42 : 38} rx={isFemale ? 24 : 20} ry={isFemale ? 26 : 22} fill="#1E293B" />
+
+        {/* Ears */}
+        <circle cx="30" cy="48" r="5" fill="#FDBA74" />
+        <circle cx="70" cy="48" r="5" fill="#FDBA74" />
+
+        {/* Neck */}
+        <rect x="44" y="55" width="12" height="15" fill="#FED7AA" />
+
+        {/* Face */}
+        <ellipse cx="50" cy="48" rx="16" ry="18" fill="#FFEDD5" />
+
+        {/* Hair Front */}
+        {isFemale ? (
+          <>
+            <path d="M26 36 C26 22, 74 22, 74 36 C70 30, 62 28, 50 32 C38 28, 30 30, 26 36 Z" fill="#1E293B" />
+            <path d="M26 36 C24 50, 26 62, 30 68 C32 60, 32 46, 32 40 Z" fill="#1E293B" />
+            <path d="M74 36 C76 50, 74 62, 70 68 C68 60, 68 46, 68 40 Z" fill="#1E293B" />
+          </>
+        ) : (
+          <>
+            <path d="M30 40 C30 24, 70 24, 70 40 C65 32, 57 30, 50 33 C43 30, 35 32, 30 40 Z" fill="#1E293B" />
+            <path d="M32 40 Q38 31 48 35 Q38 38 33 44 Z" fill="#1E293B" />
+          </>
+        )}
+
+        {/* Green Shirt */}
+        <path d="M20 100 C20 74, 34 68, 50 68 C66 68, 80 74, 80 100 Z" fill="#15803D" />
+
+        {/* Collar / V-neck */}
+        <path d="M43 68 Q50 78 57 68 Z" fill="#FFEDD5" />
+      </svg>
+    </div>
+  );
+};
+
+// Redesigned Member Card Component according to the user guide image
+interface MemberCardProps {
+  member: {
+    id?: number;
+    firstname: string;
+    lastname: string;
+    member_code?: string;
+    gender: string;
+    age?: number;
+    birthdate?: string;
+    contact_number: string;
+    membership_date: string;
+    status: string;
+    profile_picture_url?: string | null;
+  };
+  onView?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  isPreview?: boolean;
+  showActions?: boolean;
+}
+
+const MemberCard = ({
+  member,
+  onView,
+  onEdit,
+  onDelete,
+  isPreview = false,
+  showActions,
+}: MemberCardProps) => {
+  const ageDisplay = calculateMemberAge(member.birthdate, member.age);
+  const fullName = `${member.firstname || "FIRSTNAME"} ${member.lastname || "LASTNAME"}`.trim();
+  const code = member.member_code || "MEM-2026-0001";
+  const dateStr = member.membership_date || new Date().toISOString().split("T")[0];
+  const isActive = member.status === "Active";
+  const canShowActions = showActions ?? !isPreview;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all duration-200 p-4 sm:p-5 flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 lg:gap-0">
+      {/* 1. Avatar & Active Pill */}
+      <div className="flex flex-col items-center justify-center lg:px-6 lg:border-r border-slate-100 shrink-0 gap-2">
+        <MemberCardAvatar
+          url={member.profile_picture_url}
+          firstname={member.firstname}
+          lastname={member.lastname}
+          gender={member.gender}
+        />
+        <span
+          className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold ${
+            isActive
+              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/70"
+              : "bg-slate-100 text-slate-600 border border-slate-200"
+          }`}
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              isActive ? "bg-emerald-600" : "bg-slate-400"
+            }`}
+          ></span>
+          <span>{member.status || "Active"}</span>
+        </span>
+      </div>
+
+      {/* 2. Member Name, Code, and Details */}
+      <div className="flex-1 lg:px-6 flex flex-col justify-center">
+        <h3 className="text-lg sm:text-xl font-extrabold text-slate-800 tracking-tight uppercase">
+          {fullName}
+        </h3>
+
+        <div className="flex items-center gap-2 mt-1 font-bold text-sm text-emerald-800">
+          <TbIdBadge2 className="w-5 h-5 text-emerald-700 shrink-0" />
+          <span>{code}</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-3 text-xs sm:text-sm font-semibold text-slate-600">
+          <div className="flex items-center gap-1.5">
+            {member.gender === "Female" ? (
+              <TbGenderFemale className="w-4 h-4 text-slate-500 shrink-0" />
+            ) : (
+              <TbGenderMale className="w-4 h-4 text-slate-500 shrink-0" />
+            )}
+            <span>{member.gender || "Male"}</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <FiCalendar className="w-4 h-4 text-slate-500 shrink-0" />
+            <span>~{ageDisplay} yrs</span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <FiPhone className="w-4 h-4 text-slate-500 shrink-0" />
+            <span>{member.contact_number || "09127054368"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Member Since & Status Info */}
+      <div className={`lg:px-8 lg:border-l ${canShowActions ? "lg:border-r" : ""} border-slate-100 flex flex-col justify-center gap-3 shrink-0 py-2 lg:py-0 border-t border-b lg:border-t-0 lg:border-b-0`}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+            <FiCalendar className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
+              Member Since
+            </span>
+            <span className="font-bold text-slate-800 text-sm">
+              {dateStr}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+            <TbUsers className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
+              Status
+            </span>
+            <span
+              className={`inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold ${
+                isActive
+                  ? "bg-emerald-100 text-emerald-800"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {member.status || "Active"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Action Buttons (View, Edit, Delete) - Only shown in member list, hidden in Add/Edit/View modals */}
+      {canShowActions && (
+        <div className="lg:pl-6 flex lg:flex-col flex-wrap justify-center items-center gap-2 shrink-0 pt-2 lg:pt-0">
+          <button
+            type="button"
+            onClick={onView}
+            className="w-full sm:w-28 py-1.5 px-3 rounded-full border border-emerald-600/70 text-emerald-800 hover:bg-emerald-600 hover:text-white transition flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer"
+          >
+            <FiEye className="w-3.5 h-3.5" />
+            <span>View</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onEdit}
+            className="w-full sm:w-28 py-1.5 px-3 rounded-full border border-emerald-600/70 text-emerald-800 hover:bg-emerald-600 hover:text-white transition flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer"
+          >
+            <FiEdit className="w-3.5 h-3.5" />
+            <span>Edit</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full sm:w-28 py-1.5 px-3 rounded-full border border-emerald-600/70 text-emerald-800 hover:bg-red-600 hover:border-red-600 hover:text-white transition flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer"
+          >
+            <FiTrash2 className="w-3.5 h-3.5" />
+            <span>Delete</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const MembersPage = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   // Search & Filters
   const [search, setSearch] = useState("");
@@ -35,6 +294,7 @@ const MembersPage = () => {
   const [membershipDate, setMembershipDate] = useState("");
   const [status, setStatus] = useState("Active");
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
   
   // Validation/Errors
   const [formErrors, setFormErrors] = useState<any>({});
@@ -75,6 +335,7 @@ const MembersPage = () => {
     setMembershipDate(new Date().toISOString().split('T')[0]);
     setStatus("Active");
     setProfilePicture(null);
+    setProfilePicturePreview(null);
     setFormErrors({});
     setIsAddModalOpen(true);
   };
@@ -91,8 +352,18 @@ const MembersPage = () => {
     setMembershipDate(member.membership_date);
     setStatus(member.status);
     setProfilePicture(null);
+    setProfilePicturePreview(member.profile_picture_url || null);
     setFormErrors({});
     setIsEditModalOpen(true);
+  };
+
+  const handleProfileFileChange = (file: File | null) => {
+    setProfilePicture(file);
+    if (file) {
+      setProfilePicturePreview(URL.createObjectURL(file));
+    } else {
+      setProfilePicturePreview(null);
+    }
   };
 
   const openViewModal = async (member: Member) => {
@@ -244,17 +515,70 @@ const MembersPage = () => {
             <option value="Female">Female</option>
             <option value="Other">Other</option>
           </select>
+
+          {/* View Mode Toggle: Cards (Guide Design) vs Table */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode("cards")}
+              className={`py-1.5 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === "cards"
+                  ? "bg-white text-primary shadow-xs"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+              title="Card View (Guide Layout)"
+            >
+              <FiGrid className="w-3.5 h-3.5" />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={`py-1.5 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-white text-primary shadow-xs"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+              title="Table View"
+            >
+              <FiList className="w-3.5 h-3.5" />
+              <span>Table</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Members Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-slate-400 text-sm">Searching member database...</p>
+      {/* Members Directory Content */}
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-xs flex flex-col items-center justify-center py-20 gap-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-400 text-sm">Searching member database...</p>
+        </div>
+      ) : viewMode === "cards" ? (
+        /* Redesigned Cards View (Guided by screenshot) */
+        <div className="space-y-3.5">
+          {members.length > 0 ? (
+            members.map((member) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                onView={() => openViewModal(member)}
+                onEdit={() => openEditModal(member)}
+                onDelete={() => handleDeleteMember(member)}
+              />
+            ))
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-12 text-center text-slate-400 font-medium">
+              No matching smallholder farmers found.
+            </div>
+          )}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-xs p-2">
+            <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={handlePageChange} />
           </div>
-        ) : (
+        </div>
+      ) : (
+        /* Alternative Table View */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-100 text-sm">
               <thead className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-xs">
@@ -332,16 +656,41 @@ const MembersPage = () => {
               </tbody>
             </table>
           </div>
-        )}
-        <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={handlePageChange} />
-      </div>
+          <Pagination currentPage={currentPage} lastPage={lastPage} onPageChange={handlePageChange} />
+        </div>
+      )}
 
       {/* ADD MEMBER MODAL */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} showCloseButton={true}>
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} showCloseButton={true} className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
         <div className="p-2 space-y-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Add Cooperative Member</h3>
             <p className="text-xs text-slate-500">Add a new farmer registration profile to CASCOFAMCO.</p>
+          </div>
+
+          {/* Live Card Preview according to guide design */}
+          <div className="space-y-1.5 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70">
+            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+              <span className="font-bold uppercase tracking-wider text-[11px] text-slate-600 flex items-center gap-1.5">
+                <FiInfo className="w-3.5 h-3.5 text-primary" />
+                Live Member Card Preview
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">Updates in real time as you fill out form</span>
+            </div>
+            <MemberCard
+              member={{
+                firstname: firstname || "RJ-MEL",
+                lastname: lastname || "DOGELLO",
+                member_code: "MEM-2026-AUTO",
+                gender: gender || "Male",
+                birthdate: birthdate || "2006-01-01",
+                contact_number: contactNumber || "09127054368",
+                membership_date: membershipDate || new Date().toISOString().split("T")[0],
+                status: status || "Active",
+                profile_picture_url: profilePicturePreview,
+              }}
+              isPreview={true}
+            />
           </div>
 
           <form onSubmit={handleAddMember} className="space-y-4">
@@ -465,7 +814,7 @@ const MembersPage = () => {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
+                onChange={(e) => handleProfileFileChange(e.target.files ? e.target.files[0] : null)}
                 className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-primary hover:file:bg-green-100 cursor-pointer"
               />
               {formErrors.profile_picture && <p className="text-red-500 text-xs mt-1">{formErrors.profile_picture[0]}</p>}
@@ -492,11 +841,37 @@ const MembersPage = () => {
       </Modal>
 
       {/* EDIT MEMBER MODAL */}
-      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} showCloseButton={true}>
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} showCloseButton={true} className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
         <div className="p-2 space-y-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Edit Member Registration</h3>
             <p className="text-xs text-slate-500">Update detailed info for: <span className="font-semibold text-primary">{firstname} {lastname}</span></p>
+          </div>
+
+          {/* Live Card Preview */}
+          <div className="space-y-1.5 bg-slate-50/80 p-3 rounded-2xl border border-slate-200/70">
+            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+              <span className="font-bold uppercase tracking-wider text-[11px] text-slate-600 flex items-center gap-1.5">
+                <FiInfo className="w-3.5 h-3.5 text-primary" />
+                Live Member Card Preview
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">Updates in real time as you edit</span>
+            </div>
+            <MemberCard
+              member={{
+                firstname: firstname || "FIRSTNAME",
+                lastname: lastname || "LASTNAME",
+                member_code: selectedMember?.member_code || "MEM-2026-0001",
+                gender: gender || "Male",
+                birthdate: birthdate,
+                age: calculateMemberAge(birthdate),
+                contact_number: contactNumber,
+                membership_date: membershipDate,
+                status: status,
+                profile_picture_url: profilePicturePreview,
+              }}
+              isPreview={true}
+            />
           </div>
 
           <form onSubmit={handleEditMember} className="space-y-4">
@@ -617,7 +992,7 @@ const MembersPage = () => {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setProfilePicture(e.target.files ? e.target.files[0] : null)}
+                onChange={(e) => handleProfileFileChange(e.target.files ? e.target.files[0] : null)}
                 className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-green-50 file:text-primary hover:file:bg-green-100 cursor-pointer"
               />
               {formErrors.profile_picture && <p className="text-red-500 text-xs mt-1">{formErrors.profile_picture[0]}</p>}
@@ -644,26 +1019,11 @@ const MembersPage = () => {
       </Modal>
 
       {/* VIEW MEMBER PROFILE MODAL */}
-      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} showCloseButton={true}>
+      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} showCloseButton={true} className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
         {selectedMember && (
           <div className="p-2 space-y-6">
-            <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
-              <div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-250 overflow-hidden flex items-center justify-center flex-shrink-0">
-                {selectedMember.profile_picture_url ? (
-                  <img src={selectedMember.profile_picture_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <FiUser className="w-8 h-8 text-slate-400" />
-                )}
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-800">{selectedMember.firstname} {selectedMember.lastname}</h3>
-                <span className="text-xs text-primary font-semibold block mt-0.5">{selectedMember.member_code}</span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold mt-1.5 uppercase ${
-                  selectedMember.status === 'Active' ? 'bg-green-50 text-green-700 border border-green-150' : 'bg-slate-100 text-slate-650'
-                }`}>
-                  {selectedMember.status}
-                </span>
-              </div>
+            <div className="border-b border-slate-100 pb-3">
+              <MemberCard member={selectedMember} isPreview={true} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">

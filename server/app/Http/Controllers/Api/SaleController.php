@@ -28,6 +28,7 @@ class SaleController extends Controller
                 $q->where('invoice_no', 'like', "%{$search}%")
                   ->orWhere('buyer', 'like', "%{$search}%")
                   ->orWhere('product', 'like', "%{$search}%")
+                  ->orWhere('unit', 'like', "%{$search}%")
                   ->orWhere('remarks', 'like', "%{$search}%");
             });
         }

@@ -50,7 +50,6 @@ const CashDisbursementPage = () => {
     "Salaries & Wages",
     "Office Supplies",
     "Transport & Shipping",
-    "Miscellaneous"
   ];
 
   const paymentMethodsList = ["Cash", "Check", "Bank Transfer", "GCash"];

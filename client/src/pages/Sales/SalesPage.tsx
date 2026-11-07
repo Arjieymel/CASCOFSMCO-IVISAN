@@ -38,9 +38,9 @@ const SalesPage = () => {
 
   // Form Fields
   const [buyer, setBuyer] = useState("");
-  const [product, setProduct] = useState("Copra");
+  const [product, setProduct] = useState("Virgin Coconut Oil (VCO)");
   const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("kg");
+  const [unit, setUnit] = useState("Liter");
   const [unitPrice, setUnitPrice] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Cash");
   const [remarks, setRemarks] = useState("");
@@ -52,7 +52,268 @@ const SalesPage = () => {
   const [formErrors, setFormErrors] = useState<any>({});
   const [submitLoading, setSubmitLoading] = useState(false);
 
-  const productList = ["Coconut Oil", "Desiccated Coconut", "Charcoal", "Coir Fiber"];
+  // Product categories & Unit configurations
+  const productCategories: Record<string, string[]> = {
+    "Food Products": [
+      "Virgin Coconut Oil (VCO)",
+      "Refined and Cooking Oil",
+      "Crude Coconut Oil",
+      "Coconut Water Vinegar",
+      "Coconut Butter",
+    ],
+    "Non-Food & Agricultural By-Products": [
+      "Copra Meal and Copra Cake",
+      "Coconut Milk Soap / Bath Soap",
+      "Coconut Coir and Coco Fiber",
+      "Coconut Dust / Coir Dust",
+      "Coconets",
+    ],
+  };
+
+  interface ProductUnitMeta {
+    defaultUnit: string;
+    allowedUnits: string[];
+    quantityLabel: string;
+    unitPriceLabel: string;
+    quantityPlaceholder?: string;
+    step?: string;
+    min?: string;
+    helperText?: string;
+  }
+
+  const PRODUCT_CONFIG: Record<string, ProductUnitMeta> = {
+    // 1. VCO = Liter
+    "Virgin Coconut Oil (VCO)": {
+      defaultUnit: "Liter",
+      allowedUnits: ["Liter"],
+      quantityLabel: "Volume (Liters)",
+      unitPriceLabel: "Unit Price (PHP per Liter)",
+      quantityPlaceholder: "e.g. 100",
+      helperText: "Sold wholesale in Liters (L)",
+    },
+    "VCO": {
+      defaultUnit: "Liter",
+      allowedUnits: ["Liter"],
+      quantityLabel: "Volume (Liters)",
+      unitPriceLabel: "Unit Price (PHP per Liter)",
+      quantityPlaceholder: "e.g. 100",
+      helperText: "Sold wholesale in Liters (L)",
+    },
+
+    // 2. Coconut Milk Soap = Piece
+    "Coconut Milk Soap": {
+      defaultUnit: "Piece",
+      allowedUnits: ["Piece"],
+      quantityLabel: "Quantity (Pieces)",
+      unitPriceLabel: "Unit Price (PHP per Piece)",
+      quantityPlaceholder: "e.g. 500",
+      step: "1",
+      min: "1",
+      helperText: "Sold per piece / bar",
+    },
+    "Coconut Milk Soap / Bath Soap": {
+      defaultUnit: "Piece",
+      allowedUnits: ["Piece"],
+      quantityLabel: "Quantity (Pieces)",
+      unitPriceLabel: "Unit Price (PHP per Piece)",
+      quantityPlaceholder: "e.g. 500",
+      step: "1",
+      min: "1",
+      helperText: "Sold per piece / bar",
+    },
+
+    // 3. Copra Meal = Kilogram
+    "Copra Meal": {
+      defaultUnit: "Kilogram",
+      allowedUnits: ["Kilogram"],
+      quantityLabel: "Weight (Kilograms)",
+      unitPriceLabel: "Unit Price (PHP per Kilogram)",
+      quantityPlaceholder: "e.g. 1500.00",
+      helperText: "Sold by weight in Kilograms (kg)",
+    },
+    "Copra Meal and Copra Cake": {
+      defaultUnit: "Kilogram",
+      allowedUnits: ["Kilogram"],
+      quantityLabel: "Weight (Kilograms)",
+      unitPriceLabel: "Unit Price (PHP per Kilogram)",
+      quantityPlaceholder: "e.g. 1500.00",
+      helperText: "Sold by weight in Kilograms (kg)",
+    },
+
+    // 4. Coconut Dust = Sack
+    "Coconut Dust": {
+      defaultUnit: "Sack",
+      allowedUnits: ["Sack"],
+      quantityLabel: "Quantity (Sacks)",
+      unitPriceLabel: "Unit Price (PHP per Sack)",
+      quantityPlaceholder: "e.g. 50",
+      step: "1",
+      min: "1",
+      helperText: "Sold in standard Sacks / Bags",
+    },
+    "Coconut Dust / Coir Dust": {
+      defaultUnit: "Sack",
+      allowedUnits: ["Sack"],
+      quantityLabel: "Quantity (Sacks)",
+      unitPriceLabel: "Unit Price (PHP per Sack)",
+      quantityPlaceholder: "e.g. 50",
+      step: "1",
+      min: "1",
+      helperText: "Sold in standard Sacks / Bags",
+    },
+
+    // 5. Coconets = Meter or Roll
+    "Coconets": {
+      defaultUnit: "Meter",
+      allowedUnits: ["Meter", "Roll"],
+      quantityLabel: "Quantity",
+      unitPriceLabel: "Unit Price",
+      quantityPlaceholder: "e.g. 100 or 5",
+      helperText: "Buyers can purchase per Meter (custom cut length) or per standard Roll",
+    },
+    "Coconets / Coco Net": {
+      defaultUnit: "Meter",
+      allowedUnits: ["Meter", "Roll"],
+      quantityLabel: "Quantity",
+      unitPriceLabel: "Unit Price",
+      quantityPlaceholder: "e.g. 100 or 5",
+      helperText: "Buyers can purchase per Meter (custom cut length) or per standard Roll",
+    },
+
+    // Standard & Existing Products
+    "Copra": {
+      defaultUnit: "Kilogram",
+      allowedUnits: ["Kilogram"],
+      quantityLabel: "Weight (Kilograms)",
+      unitPriceLabel: "Unit Price (PHP per kg)",
+      quantityPlaceholder: "e.g. 2500.00",
+      helperText: "Sold by weight in Kilograms (kg)",
+    },
+    "Charcoal": {
+      defaultUnit: "Kilogram",
+      allowedUnits: ["Kilogram", "Sack"],
+      quantityLabel: "Quantity (kg or Sacks)",
+      unitPriceLabel: "Unit Price (PHP per Unit)",
+      quantityPlaceholder: "e.g. 200",
+      helperText: "Sold in Kilograms (kg) or Sacks",
+    },
+    "Coconut Coir and Coco Fiber": {
+      defaultUnit: "Kilogram",
+      allowedUnits: ["Kilogram", "Bale"],
+      quantityLabel: "Weight / Quantity",
+      unitPriceLabel: "Unit Price (PHP per Unit)",
+      quantityPlaceholder: "e.g. 300",
+      helperText: "Sold in Kilograms (kg) or Bales",
+    },
+    "Refined and Cooking Oil": {
+      defaultUnit: "Liter",
+      allowedUnits: ["Liter"],
+      quantityLabel: "Volume (Liters)",
+      unitPriceLabel: "Unit Price (PHP per Liter)",
+      quantityPlaceholder: "e.g. 200",
+      helperText: "Sold in Liters (L)",
+    },
+    "Crude Coconut Oil": {
+      defaultUnit: "Liter",
+      allowedUnits: ["Liter"],
+      quantityLabel: "Volume (Liters)",
+      unitPriceLabel: "Unit Price (PHP per Liter)",
+      quantityPlaceholder: "e.g. 500",
+      helperText: "Sold in Liters (L)",
+    },
+    "Coconut Water Vinegar": {
+      defaultUnit: "Liter",
+      allowedUnits: ["Liter", "Bottle"],
+      quantityLabel: "Volume / Units",
+      unitPriceLabel: "Unit Price (PHP per Unit)",
+      quantityPlaceholder: "e.g. 50",
+    },
+    "Coconut Butter": {
+      defaultUnit: "Jar",
+      allowedUnits: ["Jar", "Kilogram"],
+      quantityLabel: "Quantity (Jars or kg)",
+      unitPriceLabel: "Unit Price (PHP per Unit)",
+      quantityPlaceholder: "e.g. 40",
+    },
+  };
+
+  const getProductMeta = (productName: string, selectedUnit?: string) => {
+    const meta = PRODUCT_CONFIG[productName] || {
+      defaultUnit: "Kilogram",
+      allowedUnits: ["Kilogram", "Liter", "Piece", "Sack", "Meter", "Roll"],
+      quantityLabel: "Quantity",
+      unitPriceLabel: "Unit Price",
+      quantityPlaceholder: "0.00",
+      helperText: "",
+    };
+
+    const currentUnit = selectedUnit || meta.defaultUnit;
+
+    let dynamicQtyLabel = meta.quantityLabel;
+    let dynamicPriceLabel = `Unit Price (PHP per ${currentUnit})`;
+
+    if (currentUnit === "Meter") {
+      dynamicQtyLabel = "Length (Meters)";
+      dynamicPriceLabel = "Unit Price (PHP per Meter)";
+    } else if (currentUnit === "Roll") {
+      dynamicQtyLabel = "Quantity (Rolls)";
+      dynamicPriceLabel = "Unit Price (PHP per Roll)";
+    } else if (currentUnit === "Liter") {
+      dynamicQtyLabel = "Volume (Liters)";
+      dynamicPriceLabel = "Unit Price (PHP per Liter)";
+    } else if (currentUnit === "Piece") {
+      dynamicQtyLabel = "Quantity (Pieces)";
+      dynamicPriceLabel = "Unit Price (PHP per Piece)";
+    } else if (currentUnit === "Kilogram") {
+      dynamicQtyLabel = "Weight (Kilograms)";
+      dynamicPriceLabel = "Unit Price (PHP per Kilogram)";
+    } else if (currentUnit === "Sack") {
+      dynamicQtyLabel = "Quantity (Sacks)";
+      dynamicPriceLabel = "Unit Price (PHP per Sack)";
+    }
+
+    return {
+      ...meta,
+      currentUnit,
+      dynamicQtyLabel,
+      dynamicPriceLabel,
+    };
+  };
+
+  const formatUnitDisplay = (quantity: number | string, u: string) => {
+    if (!u) return "";
+    const q = parseFloat(quantity?.toString() || "0");
+    const lower = u.toLowerCase();
+
+    if (lower === "kg" || lower === "pcs" || lower === "l" || lower === "m") {
+      return u;
+    }
+
+    if (q === 1) {
+      return u;
+    }
+
+    if (lower === "liter") return "Liters";
+    if (lower === "piece") return "Pieces";
+    if (lower === "sack") return "Sacks";
+    if (lower === "meter") return "Meters";
+    if (lower === "roll") return "Rolls";
+    if (lower === "kilogram") return "Kilograms";
+    if (lower === "jar") return "Jars";
+    if (lower === "bottle") return "Bottles";
+    if (lower === "bale") return "Bales";
+
+    return u.endsWith("s") ? u : `${u}s`;
+  };
+
+  const handleProductChange = (newProduct: string) => {
+    setProduct(newProduct);
+    const meta = getProductMeta(newProduct);
+    if (!meta.allowedUnits.includes(unit)) {
+      setUnit(meta.defaultUnit);
+    }
+  };
+
   const paymentMethodsList = ["Cash", "GCash", "Bank Transfer", "Check"];
   const statusesList = ["Paid", "Pending", "Cancelled"];
 
@@ -83,10 +344,12 @@ const SalesPage = () => {
 
   // Open Modals
   const openAddModal = () => {
+    const initialProduct = "Virgin Coconut Oil (VCO)";
+    const meta = getProductMeta(initialProduct);
     setBuyer("");
-    setProduct("Copra");
+    setProduct(initialProduct);
+    setUnit(meta.defaultUnit);
     setQuantity("");
-    setUnit("kg");
     setUnitPrice("");
     setPaymentMethod("Cash");
     setRemarks("");
@@ -143,7 +406,8 @@ const SalesPage = () => {
     setBuyer(s.buyer);
     setProduct(s.product);
     setQuantity(s.quantity.toString());
-    setUnit(s.unit);
+    const meta = getProductMeta(s.product, s.unit);
+    setUnit(s.unit || meta.defaultUnit);
     setUnitPrice(s.unit_price.toString());
     setPaymentMethod(s.payment_method);
     setRemarks(s.remarks || "");
@@ -263,13 +527,15 @@ const SalesPage = () => {
     return "0.00";
   };
 
+  const currentMeta = getProductMeta(product, unit);
+
   return (
     <div className="space-y-6">
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-slate-100 shadow-xs gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Wholesale Sales Recording</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Record wholesale copra sales, generate invoices, track buyers and payouts.</p>
+          <p className="text-sm text-slate-500 mt-0.5">Record wholesale sales across coconut commodities, configure buyer units (VCO, Soap, Copra Meal, Dust, Coconets), generate invoices and track balances.</p>
         </div>
         <button
           onClick={openAddModal}
@@ -280,10 +546,40 @@ const SalesPage = () => {
         </button>
       </div>
 
+      {/* Product Buying Units Reference Banner */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 border border-emerald-150 rounded-2xl p-4.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-slate-700 shadow-2xs">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold">
+            <FiInfo className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="font-bold text-slate-800">Product Buying Units Reference</h4>
+            <p className="text-[11px] text-slate-500">Standard units automatically applied when creating buyer sales invoices</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="bg-white px-2.5 py-1.5 rounded-lg border border-emerald-200/80 shadow-2xs text-[11px]">
+            <strong className="text-primary font-bold">VCO:</strong> Liter (L)
+          </span>
+          <span className="bg-white px-2.5 py-1.5 rounded-lg border border-emerald-200/80 shadow-2xs text-[11px]">
+            <strong className="text-primary font-bold">Coconut Milk Soap:</strong> Piece
+          </span>
+          <span className="bg-white px-2.5 py-1.5 rounded-lg border border-emerald-200/80 shadow-2xs text-[11px]">
+            <strong className="text-primary font-bold">Copra Meal:</strong> Kilogram (kg)
+          </span>
+          <span className="bg-white px-2.5 py-1.5 rounded-lg border border-emerald-200/80 shadow-2xs text-[11px]">
+            <strong className="text-primary font-bold">Coconut Dust:</strong> Sack
+          </span>
+          <span className="bg-white px-2.5 py-1.5 rounded-lg border border-emerald-200/80 shadow-2xs text-[11px]">
+            <strong className="text-primary font-bold">Coconets:</strong> Meter or Roll
+          </span>
+        </div>
+      </div>
+
       {/* Search & Filters */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-xs space-y-4">
         <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
-          <SearchBar value={search} onChange={setSearch} placeholder="Search by invoice no, buyer, product..." />
+          <SearchBar value={search} onChange={setSearch} placeholder="Search by invoice no, buyer, product, unit..." />
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <select
@@ -355,7 +651,7 @@ const SalesPage = () => {
                   <th className="px-6 py-4 text-left">Date</th>
                   <th className="px-6 py-4 text-left">Buyer</th>
                   <th className="px-6 py-4 text-left">Product</th>
-                  <th className="px-6 py-4 text-left">Qty</th>
+                  <th className="px-6 py-4 text-left">Quantity & Unit</th>
                   <th className="px-6 py-4 text-left">Unit Price</th>
                   <th className="px-6 py-4 text-left">Total Amount</th>
                   <th className="px-6 py-4 text-left">Payment</th>
@@ -374,8 +670,22 @@ const SalesPage = () => {
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-800">{sale.buyer}</td>
                       <td className="px-6 py-4">{sale.product}</td>
-                      <td className="px-6 py-4">{parseFloat(sale.quantity.toString()).toLocaleString()} {sale.unit}</td>
-                      <td className="px-6 py-4">₱ {parseFloat(sale.unit_price.toString()).toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-800">
+                          {parseFloat(sale.quantity.toString()).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-xs font-semibold text-primary">
+                          {formatUnitDisplay(sale.quantity, sale.unit)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-slate-800">
+                          ₱ {parseFloat(sale.unit_price.toString()).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-medium">
+                          per {sale.unit || "unit"}
+                        </div>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="font-bold text-primary">₱ {parseFloat(sale.total_amount.toString()).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
                         {sale.status === 'Paid' && (
@@ -484,12 +794,16 @@ const SalesPage = () => {
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Product Category</label>
                 <select
                   value={product}
-                  onChange={(e) => setProduct(e.target.value)}
+                  onChange={(e) => handleProductChange(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary font-medium text-slate-700"
                 >
-                  {productList.map(p => (
-                    <option key={p} value={p}>{p}</option>
+                  {Object.entries(productCategories).map(([group, products]) => (
+                    <optgroup key={group} label={group}>
+                      {products.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
@@ -506,28 +820,89 @@ const SalesPage = () => {
               </div>
             </div>
 
+            {/* Unit of Measure Selection / Buying Options */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Unit of Measure (Buying Options)
+                </label>
+                <span className="text-xs font-semibold text-primary">
+                  Selected: <span className="font-bold underline decoration-primary/40">{unit}</span>
+                </span>
+              </div>
+
+              {currentMeta.allowedUnits.length > 1 ? (
+                <div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {currentMeta.allowedUnits.map((u) => {
+                      const isSelected = unit === u;
+                      return (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setUnit(u)}
+                          className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            isSelected
+                              ? "bg-primary text-white border-primary shadow-xs ring-2 ring-primary/20"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span>Buy per {u}</span>
+                          {u === "Meter" && <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>(Custom Length)</span>}
+                          {u === "Roll" && <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>(Full Roll)</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {currentMeta.helperText && (
+                    <p className="text-[11px] text-slate-500 mt-1.5">
+                      {currentMeta.helperText}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200/60 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>
+                    <span className="font-semibold text-slate-700">
+                      Standard Wholesale Unit: <strong className="text-primary font-bold">{unit}</strong>
+                    </span>
+                  </div>
+                  {currentMeta.helperText && (
+                    <span className="text-[11px] text-slate-400 font-medium italic">
+                      {currentMeta.helperText}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Quantity (Weight)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  {currentMeta.dynamicQtyLabel}
+                </label>
                 <div className="relative">
                   <input
                     type="number"
-                    step="0.01"
+                    step={currentMeta.step || "0.01"}
                     required
-                    min="0.01"
+                    min={currentMeta.min || "0.01"}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full pl-3 pr-12 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder={currentMeta.quantityPlaceholder || "0.00"}
+                    className="w-full pl-3 pr-16 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
+                  <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-bold text-slate-400 pointer-events-none">
                     {unit}
                   </span>
                 </div>
                 {formErrors.quantity && <p className="text-red-550 text-xs mt-1">{formErrors.quantity[0]}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Unit Price (PHP per kg)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  {currentMeta.dynamicPriceLabel}
+                </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm pointer-events-none">₱</span>
                   <input
@@ -575,9 +950,19 @@ const SalesPage = () => {
             </div>
 
             {/* Auto calculate display */}
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center text-sm">
-              <span className="font-semibold text-slate-500 uppercase text-xs">Auto Calculated Invoice Total:</span>
-              <span className="font-bold text-primary text-lg">₱ {computedTotal()}</span>
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-semibold text-slate-500 uppercase text-xs">Auto Calculated Invoice Total:</span>
+                <span className="font-bold text-primary text-lg">₱ {computedTotal()}</span>
+              </div>
+              {parseFloat(quantity) > 0 && parseFloat(unitPrice) > 0 && (
+                <div className="text-xs text-slate-500 flex items-center justify-between border-t border-slate-200/60 pt-1.5">
+                  <span>Breakdown:</span>
+                  <span className="font-mono font-medium text-slate-700">
+                    {parseFloat(quantity).toLocaleString()} {formatUnitDisplay(quantity, unit)} × ₱{parseFloat(unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} per {unit}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Payment & Cash Balance Integration Details */}
@@ -688,12 +1073,16 @@ const SalesPage = () => {
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Product Category</label>
                 <select
                   value={product}
-                  onChange={(e) => setProduct(e.target.value)}
+                  onChange={(e) => handleProductChange(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary font-medium text-slate-700"
                 >
-                  {productList.map(p => (
-                    <option key={p} value={p}>{p}</option>
+                  {Object.entries(productCategories).map(([group, products]) => (
+                    <optgroup key={group} label={group}>
+                      {products.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
@@ -710,27 +1099,88 @@ const SalesPage = () => {
               </div>
             </div>
 
+            {/* Unit of Measure Selection / Buying Options */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  Unit of Measure (Buying Options)
+                </label>
+                <span className="text-xs font-semibold text-primary">
+                  Selected: <span className="font-bold underline decoration-primary/40">{unit}</span>
+                </span>
+              </div>
+
+              {currentMeta.allowedUnits.length > 1 ? (
+                <div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {currentMeta.allowedUnits.map((u) => {
+                      const isSelected = unit === u;
+                      return (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setUnit(u)}
+                          className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            isSelected
+                              ? "bg-primary text-white border-primary shadow-xs ring-2 ring-primary/20"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span>Buy per {u}</span>
+                          {u === "Meter" && <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>(Custom Length)</span>}
+                          {u === "Roll" && <span className={`text-[10px] ${isSelected ? "text-emerald-100" : "text-slate-400"}`}>(Full Roll)</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {currentMeta.helperText && (
+                    <p className="text-[11px] text-slate-500 mt-1.5">
+                      {currentMeta.helperText}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-200/60 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>
+                    <span className="font-semibold text-slate-700">
+                      Standard Wholesale Unit: <strong className="text-primary font-bold">{unit}</strong>
+                    </span>
+                  </div>
+                  {currentMeta.helperText && (
+                    <span className="text-[11px] text-slate-400 font-medium italic">
+                      {currentMeta.helperText}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Quantity (Weight)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  {currentMeta.dynamicQtyLabel}
+                </label>
                 <div className="relative">
                   <input
                     type="number"
-                    step="0.01"
+                    step={currentMeta.step || "0.01"}
                     required
-                    min="0.01"
+                    min={currentMeta.min || "0.01"}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full pl-3 pr-12 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full pl-3 pr-16 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
+                  <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs font-bold text-slate-400 pointer-events-none">
                     {unit}
                   </span>
                 </div>
                 {formErrors.quantity && <p className="text-red-550 text-xs mt-1">{formErrors.quantity[0]}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Unit Price (PHP per kg)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  {currentMeta.dynamicPriceLabel}
+                </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm pointer-events-none">₱</span>
                   <input
@@ -777,9 +1227,19 @@ const SalesPage = () => {
             </div>
 
             {/* Auto calculate display */}
-            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center text-sm">
-              <span className="font-semibold text-slate-500 uppercase text-xs">Auto Calculated Invoice Total:</span>
-              <span className="font-bold text-primary text-lg">₱ {computedTotal()}</span>
+            <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5">
+              <div className="flex justify-between items-center text-sm">
+                <span className="font-semibold text-slate-500 uppercase text-xs">Auto Calculated Invoice Total:</span>
+                <span className="font-bold text-primary text-lg">₱ {computedTotal()}</span>
+              </div>
+              {parseFloat(quantity) > 0 && parseFloat(unitPrice) > 0 && (
+                <div className="text-xs text-slate-500 flex items-center justify-between border-t border-slate-200/60 pt-1.5">
+                  <span>Breakdown:</span>
+                  <span className="font-mono font-medium text-slate-700">
+                    {parseFloat(quantity).toLocaleString()} {formatUnitDisplay(quantity, unit)} × ₱{parseFloat(unitPrice).toLocaleString(undefined, { minimumFractionDigits: 2 })} per {unit}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>

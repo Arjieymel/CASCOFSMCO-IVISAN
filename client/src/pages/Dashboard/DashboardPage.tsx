@@ -380,9 +380,9 @@ const DashboardPage = () => {
 
       {/* Low Stock Alerts Banner (if any) */}
       {(() => {
-        const excludedAlertProducts = ["coir fiber", "dessicated coconut", "desiccated coconut"];
+        const monitoredAlertProducts = ["copra", "whole coconut"];
         const filteredAlerts = (data.quick_stats.low_stock_alerts || []).filter(
-          (alert) => !excludedAlertProducts.includes(alert.product.trim().toLowerCase())
+          (alert) => monitoredAlertProducts.includes(alert.product.trim().toLowerCase())
         );
 
         if (filteredAlerts.length === 0) return null;

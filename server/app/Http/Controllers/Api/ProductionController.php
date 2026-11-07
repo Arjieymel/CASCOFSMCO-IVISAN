@@ -187,7 +187,7 @@ class ProductionController extends Controller
                     'net_amount' => $netAmount,
                     'source' => "Production Delivery ({$production->product_type})",
                     'payment_method' => 'Production Retention',
-                    'remarks' => "CBU deduction retention from {$quantity}{$production->unit} of {$production->product_type} @ ₱" . number_format($approvedCbuRate, 4) . "/{$production->unit}",
+                    'remarks' => "CBU deduction retention from {$quantity} {$production->unit} of {$production->product_type} @ ₱" . number_format($approvedCbuRate, 4) . "/{$production->unit}",
                     'user_id' => $request->user()?->id,
                     'recorded_by' => $request->user()?->username ?: 'admin',
                 ]);
@@ -208,7 +208,7 @@ class ProductionController extends Controller
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
                 'username' => $request->user()?->username ?: 'admin',
-                'action' => "Recorded Production: {$production->quantity}{$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}. Payment Status: {$paymentStatus}.",
+                'action' => "Recorded Production: {$production->quantity} {$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}. Payment Status: {$paymentStatus}.",
                 'ip_address' => $request->ip()
             ]);
         });
@@ -323,7 +323,7 @@ class ProductionController extends Controller
                         'cbu_rate_per_kg' => $approvedCbuRate,
                         'net_amount' => $netAmount,
                         'source' => "Production Delivery ({$request->product_type})",
-                        'remarks' => "Updated CBU deduction retention from {$quantity}{$request->unit} of {$request->product_type} @ ₱" . number_format($approvedCbuRate, 4) . "/{$request->unit}",
+                        'remarks' => "Updated CBU deduction retention from {$quantity} {$request->unit} of {$request->product_type} @ ₱" . number_format($approvedCbuRate, 4) . "/{$request->unit}",
                     ]);
                     $cbuTransactionId = $existingCbu->id;
                 } else {
@@ -342,7 +342,7 @@ class ProductionController extends Controller
                         'net_amount' => $netAmount,
                         'source' => "Production Delivery ({$request->product_type})",
                         'payment_method' => 'Production Retention',
-                        'remarks' => "CBU deduction retention from {$quantity}{$request->unit} of {$request->product_type} @ ₱" . number_format($approvedCbuRate, 4) . "/{$request->unit}",
+                        'remarks' => "CBU deduction retention from {$quantity} {$request->unit} of {$request->product_type} @ ₱" . number_format($approvedCbuRate, 4) . "/{$request->unit}",
                         'user_id' => $request->user()?->id,
                         'recorded_by' => $request->user()?->username ?: 'admin',
                     ]);
@@ -402,7 +402,7 @@ class ProductionController extends Controller
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
                 'username' => $request->user()?->username ?: 'admin',
-                'action' => "Updated Production ID {$production->id}: {$production->quantity}{$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}.",
+                'action' => "Updated Production ID {$production->id}: {$production->quantity} {$production->unit} of {$production->product_type} for member {$member->firstname} {$member->lastname}{$priceSummary}.",
                 'ip_address' => $request->ip()
             ]);
         });
@@ -493,7 +493,7 @@ class ProductionController extends Controller
                 'voucher_number' => $voucherNumber,
                 'disbursement_date' => $request->payment_date,
                 'payee' => $memberName,
-                'description' => "Member Payment for Production #{$production->id} ({$production->quantity}{$production->unit} {$production->product_type})",
+                'description' => "Member Payment for Production #{$production->id} ({$production->quantity} {$production->unit} {$production->product_type})",
                 'expense_account' => $expenseAccount,
                 'amount' => $payAmount,
                 'payment_method' => $request->payment_method,
@@ -610,7 +610,7 @@ class ProductionController extends Controller
             ActivityLog::create([
                 'user_id' => $request->user()?->id,
                 'username' => $request->user()?->username ?: 'admin',
-                'action' => "Deleted Production ID {$id}: {$production->quantity}{$production->unit} of {$production->product_type} for member {$memberName}.",
+                'action' => "Deleted Production ID {$id}: {$production->quantity} {$production->unit} of {$production->product_type} for member {$memberName}.",
                 'ip_address' => $request->ip()
             ]);
 

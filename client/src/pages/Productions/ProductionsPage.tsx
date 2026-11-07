@@ -89,6 +89,23 @@ const ProductionsPage = () => {
     "Miscellaneous"
   ];
 
+  // Unit and Calculation Helpers
+  const getDefaultUnitForProduct = (type: string) => {
+    return type === "Whole Coconut" ? "piece" : "kg";
+  };
+
+  const formatProdUnit = (qty: number | string, unitStr: string) => {
+    const num = parseFloat(String(qty)) || 0;
+    const lower = (unitStr || "").toLowerCase();
+    if (lower === "piece" || lower === "pc" || lower === "pcs") {
+      return num === 1 ? "piece" : "pieces";
+    }
+    if (lower === "kg" || lower === "kilogram") {
+      return "kg";
+    }
+    return unitStr || "kg";
+  };
+
   // Live Purchase & CBU Computation for Add/Edit forms
   const parsedQty = parseFloat(quantity) || 0;
   const parsedUnitPrice = parseFloat(unitPrice) || 0;
@@ -97,6 +114,15 @@ const ProductionsPage = () => {
   const effectiveCbuRate = hasCbuConfigured ? (cbuRateSetting as number) : 0;
   const cbuDeduction = hasCbuConfigured ? (parsedQty * effectiveCbuRate) : 0;
   const netAmountPayable = Math.max(0, grossAmount - cbuDeduction);
+
+  const isWholeCoconut = productType === "Whole Coconut";
+  const currentUnitLabel = isWholeCoconut ? "piece" : "kg";
+  const currentUnitPlural = isWholeCoconut ? (parsedQty === 1 ? "piece" : "pieces") : "kg";
+
+  const handleProductTypeChange = (newType: string) => {
+    setProductType(newType);
+    setUnit(getDefaultUnitForProduct(newType));
+  };
 
   const fetchProductions = async (page: number = 1) => {
     try {
@@ -176,7 +202,8 @@ const ProductionsPage = () => {
     setMemberId(p.member_id.toString());
     setProductType(p.product_type);
     setQuantity(p.quantity.toString());
-    setUnit(p.unit);
+    const assignedUnit = p.unit || getDefaultUnitForProduct(p.product_type);
+    setUnit(assignedUnit);
     setUnitPrice(p.unit_price !== null && p.unit_price !== undefined && parseFloat(p.unit_price.toString()) > 0 ? p.unit_price.toString() : "");
     setSource(p.source);
     setRemarks(p.remarks || "");
@@ -195,8 +222,9 @@ const ProductionsPage = () => {
     setPaymentMethod("Cash");
     setVoucherNumber("");
     setApprovedBy("General Manager");
-    setExpenseAccount("Copra Procurement Expenses");
-    setPaymentRemarks(`Member payment for Production #${p.id} (${p.quantity}${p.unit} ${p.product_type})`);
+    setExpenseAccount(p.product_type === "Whole Coconut" ? "Raw Materials Purchase" : "Copra Procurement Expenses");
+    const displayUnit = formatProdUnit(p.quantity, p.unit);
+    setPaymentRemarks(`Member payment for Production #${p.id} (${p.quantity} ${displayUnit} of ${p.product_type})`);
     setPaymentErrors({});
     setIsPaymentModalOpen(true);
   };
@@ -300,9 +328,10 @@ const ProductionsPage = () => {
 
   const handleDeleteProduction = async (p: Production) => {
     const memberName = p.member ? `${p.member.firstname} ${p.member.lastname}` : "Farmer";
+    const unitDisplay = formatProdUnit(p.quantity, p.unit);
     const result = await Swal.fire({
       title: "Delete Production Batch?",
-      text: `Are you sure you want to delete this batch of ${p.quantity}kg ${p.product_type} for ${memberName}? Any linked disbursement records will also be reversed.`,
+      text: `Are you sure you want to delete this batch of ${p.quantity} ${unitDisplay} of ${p.product_type} for ${memberName}? Any linked disbursement records will also be reversed.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#EF4444",
@@ -378,6 +407,12 @@ const ProductionsPage = () => {
 
   // Overall Totals
   const totalQuantity = productions.reduce((acc, p) => acc + (parseFloat(p.quantity?.toString() || "0") || 0), 0);
+  const totalCopraKg = productions
+    .filter(p => p.product_type === "Copra" || (p.unit && p.unit.toLowerCase() === "kg"))
+    .reduce((acc, p) => acc + (parseFloat(p.quantity?.toString() || "0") || 0), 0);
+  const totalCoconutPcs = productions
+    .filter(p => p.product_type === "Whole Coconut" || (p.unit && (p.unit.toLowerCase() === "piece" || p.unit.toLowerCase() === "pc" || p.unit.toLowerCase() === "pcs")))
+    .reduce((acc, p) => acc + (parseFloat(p.quantity?.toString() || "0") || 0), 0);
   const totalGross = productions.reduce((acc, p) => acc + (parseFloat(p.gross_amount?.toString() || "0") || 0), 0);
   const totalCbu = productions.reduce((acc, p) => acc + (parseFloat(p.cbu_deduction?.toString() || "0") || 0), 0);
   const totalNet = productions.reduce((acc, p) => acc + (parseFloat(p.net_amount?.toString() || "0") || 0), 0);
@@ -412,9 +447,32 @@ const ProductionsPage = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-xs">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Deliveries (Current View)</span>
-          <span className="text-lg font-black text-slate-800 mt-1 block">
-            {totalQuantity.toLocaleString()} <span className="text-xs font-semibold text-slate-400">kg</span>
-          </span>
+          {productTypeFilter === "Whole Coconut" ? (
+            <span className="text-lg font-black text-slate-800 mt-1 block">
+              {totalCoconutPcs.toLocaleString()} <span className="text-xs font-semibold text-slate-400">pieces</span>
+            </span>
+          ) : productTypeFilter === "Copra" ? (
+            <span className="text-lg font-black text-slate-800 mt-1 block">
+              {totalCopraKg.toLocaleString()} <span className="text-xs font-semibold text-slate-400">kg</span>
+            </span>
+          ) : totalCoconutPcs > 0 && totalCopraKg > 0 ? (
+            <div className="mt-1">
+              <span className="text-base font-black text-slate-800 block">
+                {totalCopraKg.toLocaleString()} <span className="text-xs font-semibold text-slate-400">kg</span>
+              </span>
+              <span className="text-xs font-bold text-slate-600 block">
+                + {totalCoconutPcs.toLocaleString()} <span className="text-[10px] font-semibold text-slate-400">pieces</span>
+              </span>
+            </div>
+          ) : totalCoconutPcs > 0 ? (
+            <span className="text-lg font-black text-slate-800 mt-1 block">
+              {totalCoconutPcs.toLocaleString()} <span className="text-xs font-semibold text-slate-400">pieces</span>
+            </span>
+          ) : (
+            <span className="text-lg font-black text-slate-800 mt-1 block">
+              {totalQuantity.toLocaleString()} <span className="text-xs font-semibold text-slate-400">kg</span>
+            </span>
+          )}
           <span className="text-[11px] text-slate-500 mt-0.5 block">{productions.length} batches</span>
         </div>
 
@@ -574,12 +632,30 @@ const ProductionsPage = () => {
                             <span className="text-slate-400 italic">Unknown Farmer</span>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 font-semibold text-slate-800 whitespace-nowrap">{p.product_type}</td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className="font-semibold text-slate-800 block">{p.product_type}</span>
+                          <span className={`inline-block text-[9px] font-bold px-1.5 py-0.2 rounded mt-0.5 ${
+                            p.product_type === "Whole Coconut" || p.unit === "piece" || p.unit === "pc"
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          }`}>
+                            {p.product_type === "Whole Coconut" || p.unit === "piece" || p.unit === "pc" ? "Per Piece" : "Per Kilo"}
+                          </span>
+                        </td>
                         <td className="px-4 py-3.5 text-right font-bold text-slate-700 whitespace-nowrap">
-                          {parseFloat(p.quantity.toString()).toLocaleString()} {p.unit}
+                          {parseFloat(p.quantity.toString()).toLocaleString()} {formatProdUnit(p.quantity, p.unit)}
                         </td>
                         <td className="px-4 py-3.5 text-right text-slate-600 whitespace-nowrap">
-                          {price > 0 ? formatPHP(price) : <span className="text-slate-350">—</span>}
+                          {price > 0 ? (
+                            <div>
+                              <span className="font-semibold text-slate-800">{formatPHP(price)}</span>
+                              <span className="text-[10px] text-slate-400 block font-normal">
+                                per {p.product_type === "Whole Coconut" || p.unit === "piece" || p.unit === "pc" ? "piece" : (p.unit || "unit")}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-350">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3.5 text-right font-semibold text-slate-800 whitespace-nowrap">
                           {gross > 0 ? formatPHP(gross) : <span className="text-slate-350">—</span>}
@@ -717,7 +793,7 @@ const ProductionsPage = () => {
                   <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Product Type</label>
                   <select
                     value={productType}
-                    onChange={(e) => setProductType(e.target.value)}
+                    onChange={(e) => handleProductTypeChange(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                   >
@@ -725,6 +801,18 @@ const ProductionsPage = () => {
                       <option key={type} value={type}>{type}</option>
                     ))}
                   </select>
+                  <div className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border ${
+                    isWholeCoconut 
+                      ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  }`}>
+                    <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      {isWholeCoconut
+                        ? "Calculation: Per Piece (₱ per piece)"
+                        : "Calculation: Per Kilo (₱ per kg)"}
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Production Date</label>
@@ -741,26 +829,30 @@ const ProductionsPage = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Quantity Delivered</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                    {isWholeCoconut ? "Quantity Delivered (Pieces)" : "Weight Delivered (Kilograms)"}
+                  </label>
                   <div className="relative">
                     <input
                       type="number"
-                      step="0.01"
+                      step={isWholeCoconut ? "1" : "0.01"}
                       required
-                      min="0.01"
+                      min={isWholeCoconut ? "1" : "0.01"}
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="0.00"
-                      className="w-full pl-3 pr-12 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                      placeholder={isWholeCoconut ? "0" : "0.00"}
+                      className="w-full pl-3 pr-14 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                     />
-                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
-                      {unit}
+                    <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-slate-500 pointer-events-none">
+                      {currentUnitPlural}
                     </span>
                   </div>
                   {formErrors.quantity && <p className="text-red-555 text-xs mt-1">{formErrors.quantity[0]}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Purchase Price per Unit (₱)</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                    {isWholeCoconut ? "Purchase Price per Piece (₱)" : "Purchase Price per Kilo (₱)"}
+                  </label>
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
                       ₱
@@ -782,10 +874,10 @@ const ProductionsPage = () => {
               {/* Purchase & CBU Computation Breakdown */}
               <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-700 border-b border-slate-200 pb-2">
-                  <span>Purchase & CBU Computation</span>
+                  <span>Purchase & CBU Computation ({isWholeCoconut ? "Per Piece" : "Per Kilo"})</span>
                   {hasCbuConfigured ? (
                     <span className="inline-flex items-center text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                      Configured Rate: {formatPHP(effectiveCbuRate)}/{unit}
+                      Approved Rate: {formatPHP(effectiveCbuRate)} / {currentUnitLabel}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md">
@@ -797,12 +889,23 @@ const ProductionsPage = () => {
 
                 <div className="space-y-1.5 text-xs text-slate-600 font-medium">
                   <div className="flex justify-between items-center">
-                    <span>Gross Amount</span>
+                    <span>
+                      Gross Amount
+                      {parsedQty > 0 && parsedUnitPrice > 0 && (
+                        <span className="text-[11px] text-slate-400 font-normal ml-1">
+                          ({parsedQty.toLocaleString()} {currentUnitPlural} × {formatPHP(parsedUnitPrice)} / {currentUnitLabel})
+                        </span>
+                      )}
+                    </span>
                     <span className="font-bold text-slate-800">{formatPHP(grossAmount)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>
-                      CBU Deduction {hasCbuConfigured ? `(${parsedQty.toLocaleString()} ${unit} × ${formatPHP(effectiveCbuRate)})` : '(Not deducted)'}
+                      CBU Deduction {hasCbuConfigured && parsedQty > 0 ? (
+                        <span className="text-[11px] text-slate-400 font-normal ml-1">
+                          ({parsedQty.toLocaleString()} {currentUnitPlural} × {formatPHP(effectiveCbuRate)} / {currentUnitLabel})
+                        </span>
+                      ) : '(Not deducted)'}
                     </span>
                     <span className={`font-bold ${cbuDeduction > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
                       {cbuDeduction > 0 ? `- ${formatPHP(cbuDeduction)}` : formatPHP(0)}
@@ -817,7 +920,9 @@ const ProductionsPage = () => {
                 <div className="mt-2 pt-2 border-t border-slate-200/60 text-[11px] text-slate-500 flex items-start gap-1.5">
                   <FiInfo className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                   <span>
-                    Production recording creates a pending payable (Unpaid). Actual cash outflow is recorded in Cash Disbursement Journal when CASCOFAMCO pays the member.
+                    {isWholeCoconut
+                      ? "Farmer delivery is counted in pieces. Payout is computed as pieces × price per piece minus approved CBU retention per piece."
+                      : "Farmer delivery is weighed in kilograms. Payout is computed as kg × price per kg minus approved CBU retention per kg."}
                   </span>
                 </div>
               </div>
@@ -911,7 +1016,7 @@ const ProductionsPage = () => {
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Product Type</label>
                 <select
                   value={productType}
-                  onChange={(e) => setProductType(e.target.value)}
+                  onChange={(e) => handleProductTypeChange(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                 >
@@ -919,6 +1024,18 @@ const ProductionsPage = () => {
                     <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
+                <div className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg border ${
+                  isWholeCoconut 
+                    ? 'bg-amber-50 text-amber-800 border-amber-200' 
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                }`}>
+                  <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    {isWholeCoconut
+                      ? "Calculation: Per Piece (₱ per piece)"
+                      : "Calculation: Per Kilo (₱ per kg)"}
+                  </span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Production Date</label>
@@ -935,26 +1052,30 @@ const ProductionsPage = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Quantity Delivered</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  {isWholeCoconut ? "Quantity Delivered (Pieces)" : "Weight Delivered (Kilograms)"}
+                </label>
                 <div className="relative">
                   <input
                     type="number"
-                    step="0.01"
+                    step={isWholeCoconut ? "1" : "0.01"}
                     required
-                    min="0.01"
+                    min={isWholeCoconut ? "1" : "0.01"}
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full pl-3 pr-12 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    placeholder={isWholeCoconut ? "0" : "0.00"}
+                    className="w-full pl-3 pr-14 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
                   />
-                  <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
-                    {unit}
+                  <span className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs font-bold text-slate-500 pointer-events-none">
+                    {currentUnitPlural}
                   </span>
                 </div>
                 {formErrors.quantity && <p className="text-red-555 text-xs mt-1">{formErrors.quantity[0]}</p>}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Purchase Price per Unit (₱)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">
+                  {isWholeCoconut ? "Purchase Price per Piece (₱)" : "Purchase Price per Kilo (₱)"}
+                </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-sm font-semibold text-slate-400 pointer-events-none">
                     ₱
@@ -976,10 +1097,10 @@ const ProductionsPage = () => {
             {/* Purchase & CBU Computation Breakdown */}
             <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs font-semibold text-slate-700 border-b border-slate-200 pb-2">
-                <span>Purchase & CBU Computation</span>
+                <span>Purchase & CBU Computation ({isWholeCoconut ? "Per Piece" : "Per Kilo"})</span>
                 {hasCbuConfigured ? (
                   <span className="inline-flex items-center text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                    Configured Rate: {formatPHP(effectiveCbuRate)}/{unit}
+                    Approved Rate: {formatPHP(effectiveCbuRate)} / {currentUnitLabel}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md">
@@ -991,12 +1112,23 @@ const ProductionsPage = () => {
 
               <div className="space-y-1.5 text-xs text-slate-600 font-medium">
                 <div className="flex justify-between items-center">
-                  <span>Gross Amount</span>
+                  <span>
+                    Gross Amount
+                    {parsedQty > 0 && parsedUnitPrice > 0 && (
+                      <span className="text-[11px] text-slate-400 font-normal ml-1">
+                        ({parsedQty.toLocaleString()} {currentUnitPlural} × {formatPHP(parsedUnitPrice)} / {currentUnitLabel})
+                      </span>
+                    )}
+                  </span>
                   <span className="font-bold text-slate-800">{formatPHP(grossAmount)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span>
-                    CBU Deduction {hasCbuConfigured ? `(${parsedQty.toLocaleString()} ${unit} × ${formatPHP(effectiveCbuRate)})` : '(Not deducted)'}
+                    CBU Deduction {hasCbuConfigured && parsedQty > 0 ? (
+                      <span className="text-[11px] text-slate-400 font-normal ml-1">
+                        ({parsedQty.toLocaleString()} {currentUnitPlural} × {formatPHP(effectiveCbuRate)} / {currentUnitLabel})
+                      </span>
+                    ) : '(Not deducted)'}
                   </span>
                   <span className={`font-bold ${cbuDeduction > 0 ? 'text-amber-700' : 'text-slate-400'}`}>
                     {cbuDeduction > 0 ? `- ${formatPHP(cbuDeduction)}` : formatPHP(0)}
@@ -1101,7 +1233,7 @@ const ProductionsPage = () => {
                 <div className="text-right">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Batch Reference</span>
                   <span className="font-bold text-slate-700 text-xs">Production #{paymentProduction.id}</span>
-                  <span className="text-[10px] text-slate-400 block">{paymentProduction.quantity} {paymentProduction.unit} {paymentProduction.product_type}</span>
+                  <span className="text-[10px] text-slate-400 block">{paymentProduction.quantity} {formatProdUnit(paymentProduction.quantity, paymentProduction.unit)} of {paymentProduction.product_type}</span>
                 </div>
               </div>
 
@@ -1311,7 +1443,7 @@ const ProductionsPage = () => {
                   Production #{historyProduction.id} — {historyProduction.member?.firstname} {historyProduction.member?.lastname}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Delivered {historyProduction.quantity} {historyProduction.unit} of {historyProduction.product_type} on {historyProduction.production_date ? (typeof historyProduction.production_date === 'string' ? historyProduction.production_date.split('T')[0] : historyProduction.production_date) : ""}
+                  Delivered {historyProduction.quantity} {formatProdUnit(historyProduction.quantity, historyProduction.unit)} of {historyProduction.product_type} on {historyProduction.production_date ? (typeof historyProduction.production_date === 'string' ? historyProduction.production_date.split('T')[0] : historyProduction.production_date) : ""}
                 </p>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${

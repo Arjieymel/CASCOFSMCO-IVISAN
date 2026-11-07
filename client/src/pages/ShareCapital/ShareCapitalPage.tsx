@@ -470,8 +470,8 @@ const ShareCapitalPage = () => {
           <button
             onClick={() => setActiveTab("members")}
             className={`pb-3 px-4 text-xs font-bold transition-colors cursor-pointer border-b-2 flex items-center gap-2 ${activeTab === "members"
-                ? "border-emerald-600 text-emerald-800"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-emerald-600 text-emerald-800"
+              : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
           >
             <FiLayers className="w-4 h-4" />
@@ -480,8 +480,8 @@ const ShareCapitalPage = () => {
           <button
             onClick={() => setActiveTab("transactions")}
             className={`pb-3 px-4 text-xs font-bold transition-colors cursor-pointer border-b-2 flex items-center gap-2 ${activeTab === "transactions"
-                ? "border-emerald-600 text-emerald-800"
-                : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-emerald-600 text-emerald-800"
+              : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
           >
             <FiFileText className="w-4 h-4" />
@@ -785,10 +785,10 @@ const ShareCapitalPage = () => {
                         <td className="py-3 px-4">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tx.transaction_type === "Share Capital Contribution"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : tx.transaction_type === "Subscription"
-                                  ? "bg-blue-50 text-blue-700 border-blue-200"
-                                  : "bg-amber-50 text-amber-700 border-amber-200"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : tx.transaction_type === "Subscription"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
                               }`}
                           >
                             {tx.transaction_type}
@@ -1208,8 +1208,8 @@ const ShareCapitalPage = () => {
 
               {/* Membership Fee Status Banner */}
               <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${memberLedgerData.summary.membership_fee_status === "Paid"
-                  ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-                  : "bg-amber-50 text-amber-900 border-amber-200"
+                ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                : "bg-amber-50 text-amber-900 border-amber-200"
                 }`}>
                 <div className="flex items-center gap-2">
                   <FiUserCheck className="w-4 h-4 shrink-0" />

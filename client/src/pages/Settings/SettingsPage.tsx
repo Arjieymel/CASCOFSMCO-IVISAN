@@ -260,8 +260,8 @@ const SettingsPage = () => {
                         type="button"
                         onClick={() => setTheme(t.key)}
                         className={`relative text-left p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${isSelected
-                            ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
-                            : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50"
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-sm"
+                          : "border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50"
                           }`}
                       >
                         <div className="flex items-center justify-between gap-1 mb-2">
@@ -300,21 +300,7 @@ const SettingsPage = () => {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Par Value per Share (₱)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={shareParValue}
-                    onChange={(e) => setShareParValue(e.target.value)}
-                    placeholder="e.g. 100.00"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <span className="text-[10px] text-slate-400">Baseline value per share</span>
-                </div>
+
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
